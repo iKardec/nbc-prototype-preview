@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBC — protótipo v3</title>
+<style>
+/* ===== Tokens (docs/DESIGN.md) ===== */
+:root {
+  --color-primary: #0F172A;
+  --color-on-primary: #FFFFFF;
+  --color-text: var(--color-primary);
+  --color-text-muted: #475569;
+  --color-border: #E2E8F0;
+  --color-surface-muted: var(--color-border);
+  --color-bg: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-border-strong: #7C8799;
+  --color-success: #2F6B4F;
+  --color-success-bg: #EEF5F1;
+  --color-warning: #875A16;
+  --color-warning-bg: #FAF3E6;
+  --color-danger: #A33A3A;
+  --color-danger-bg: #FBEEEE;
+  --color-info: #2E5A88;
+  --color-info-bg: #EEF3F9;
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-size-xs: 12px;
+  --font-size-sm: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+  --line-height-xs: 16px;
+  --line-height-sm: 20px;
+  --line-height-md: 24px;
+  --line-height-lg: 28px;
+  --line-height-xl: 32px;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+  --control-height: 36px;
+  --sidebar-width: 240px;
+  --content-max-width: 1280px;
+  --shadow-overlay: 0 8px 24px rgb(15 23 42 / 0.12);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --opacity-disabled: 0.5;
+
+  /* Tokens só deste protótipo (autorizados nos prompts da v2 e da v3; fora de docs/DESIGN.md) */
+  --color-sidebar-bg: var(--color-primary);
+  --color-sidebar-text: #F8FAFC;
+  --color-sidebar-text-muted: #94A3B8;
+  --color-sidebar-active: #1E293B;
+  --sidebar-width-collapsed: 72px;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+  --shadow-card-hover: 0 4px 12px rgb(15 23 42 / 0.08);
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-slow: 400ms;
+}
+
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+h1, h2, h3, p, dl, dd { margin: 0; }
+button, select, input { font: inherit; color: inherit; }
+a { color: inherit; }
+
+/* ===== Layout ===== */
+/* A coluna da barra lateral fica sempre na largura recolhida; a barra expande por cima do conteúdo. */
+.shell { display: grid; grid-template-columns: var(--sidebar-width-collapsed) 1fr; min-height: 100vh; }
+.sidebar {
+  position: fixed; top: 0; bottom: 0; left: 0; z-index: 10;
+  width: var(--sidebar-width-collapsed);
+  display: flex; flex-direction: column; gap: var(--space-6);
+  padding: var(--space-5) var(--space-3);
+  overflow: hidden;
+  background: var(--color-sidebar-bg); color: var(--color-sidebar-text);
+  /* atraso só no recolher, para não piscar */
+  transition: width var(--duration-base) var(--easing-standard) var(--duration-fast),
+              box-shadow var(--duration-base) var(--easing-standard) var(--duration-fast);
+}
+.sidebar:hover, .sidebar:has(:focus-visible) {
+  width: var(--sidebar-width);
+  box-shadow: var(--shadow-overlay);
+  transition-delay: 0s;
+}
+.recolhivel { opacity: 0; white-space: nowrap; transition: opacity var(--duration-fast) var(--easing-standard); }
+.sidebar:hover .recolhivel, .sidebar:has(:focus-visible) .recolhivel { opacity: 1; transition-delay: var(--duration-fast); }
+
+.marca {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding-left: calc((var(--sidebar-width-collapsed) - var(--control-height)) / 2 - var(--space-3));
+}
+.marca-logo {
+  width: var(--control-height); height: var(--control-height); flex: none;
+  display: grid; place-items: center; border-radius: var(--radius-md);
+  background: var(--color-surface); color: var(--color-primary);
+  font-size: var(--font-size-md); font-weight: var(--font-weight-semibold);
+}
+.marca-nome { font-size: var(--font-size-md); line-height: var(--line-height-md); font-weight: var(--font-weight-semibold); }
+.marca-sub { font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-sidebar-text-muted); text-transform: uppercase; }
+
+.nav { display: flex; flex-direction: column; gap: var(--space-1); }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) calc((var(--sidebar-width-collapsed) - var(--font-size-lg)) / 2 - var(--space-3));
+  border-radius: var(--radius-md);
+  color: var(--color-sidebar-text-muted); text-decoration: none;
+  transition: background-color var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard);
+}
+.nav-item:hover { background: var(--color-sidebar-active); color: var(--color-sidebar-text); }
+.nav-item[aria-current="page"] { background: var(--color-sidebar-active); color: var(--color-sidebar-text); font-weight: var(--font-weight-medium); }
+
+.cartao-usuario {
+  margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2) 0; border-radius: var(--radius-lg);
+  transition: background-color var(--duration-fast) var(--easing-standard);
+}
+.sidebar:hover .cartao-usuario, .sidebar:has(:focus-visible) .cartao-usuario { background: var(--color-sidebar-active); }
+.usuario-linha {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding-left: calc((var(--sidebar-width-collapsed) - var(--control-height)) / 2 - var(--space-3));
+}
+.avatar {
+  width: var(--control-height); height: var(--control-height); flex: none;
+  display: grid; place-items: center; border-radius: var(--radius-full);
+  background: var(--color-sidebar-text-muted); color: var(--color-sidebar-bg);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold);
+}
+.usuario-texto { display: flex; flex-direction: column; min-width: 0; }
+.cartao-usuario-nome { font-weight: var(--font-weight-semibold); overflow: hidden; text-overflow: ellipsis; }
+.cartao-usuario-papel { font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-sidebar-text-muted); }
+.btn-sair {
+  display: flex; align-items: center; gap: var(--space-3);
+  height: calc(var(--control-height) - var(--space-2));
+  padding: 0 0 0 calc((var(--sidebar-width-collapsed) - var(--space-4)) / 2 - var(--space-3));
+  border: 0; border-radius: var(--radius-md); background: none; cursor: pointer;
+  color: var(--color-sidebar-text-muted); font-size: var(--font-size-xs);
+  transition: color var(--duration-fast) var(--easing-standard);
+}
+.btn-sair:hover { color: var(--color-sidebar-text); }
+.sidebar :focus-visible { outline-color: var(--color-sidebar-text); }
+
+.main { grid-column: 2; display: flex; flex-direction: column; min-width: 0; }
+.demo {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-surface-muted); border-bottom: 1px dashed var(--color-border-strong);
+  font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-text-muted);
+}
+.demo-titulo { font-weight: var(--font-weight-semibold); text-transform: uppercase; }
+.demo label { display: flex; align-items: center; gap: var(--space-2); }
+.demo select { height: calc(var(--control-height) - var(--space-2)); width: auto; font-size: var(--font-size-xs); }
+.conteudo {
+  width: 100%; max-width: var(--content-max-width); margin: 0 auto;
+  display: flex; flex-direction: column; gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+}
+.cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-4); }
+.titulo { font-size: var(--font-size-xl); line-height: var(--line-height-xl); font-weight: var(--font-weight-semibold); }
+.subtitulo { margin-top: var(--space-1); color: var(--color-text-muted); }
+.cabecalho-acoes { display: flex; align-items: center; gap: var(--space-3); flex: none; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-5); }
+.grid-topo { align-items: start; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); }
+.grid-principal { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-5); align-items: start; }
+.coluna { display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* ===== Componentes ===== */
+.icone { width: var(--space-4); height: var(--space-4); flex: none; }
+.icone-nav { width: var(--font-size-lg); height: var(--font-size-lg); flex: none; }
+
+.btn {
+  height: var(--control-height); padding: 0 var(--space-4);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  border: 1px solid transparent; border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium); text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard), box-shadow var(--duration-fast) var(--easing-standard);
+}
+.btn-primario { background: var(--color-primary); color: var(--color-on-primary); }
+.btn-secundario { background: var(--color-surface); border-color: var(--color-border-strong); color: var(--color-text); }
+.btn-terciario { background: none; color: var(--color-text-muted); }
+.btn-perigo { background: var(--color-danger); color: var(--color-on-primary); }
+.btn-primario:hover, .btn-perigo:hover { box-shadow: var(--shadow-card-hover); text-decoration: underline; }
+.btn-secundario:hover, .btn-terciario:hover { background: var(--color-surface-muted); }
+.btn-secundario:active, .btn-terciario:active { background: var(--color-border); border-color: var(--color-text-muted); }
+.btn-bloco { width: 100%; }
+.link { color: var(--color-text); font-weight: var(--font-weight-medium); text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.link-discreto { color: var(--color-text-muted); text-decoration: none; }
+.link-discreto:hover { color: var(--color-text); text-decoration: underline; }
+
+.abas { display: inline-flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.aba {
+  height: calc(var(--control-height) - var(--space-2)); padding: 0 var(--space-3);
+  display: inline-flex; align-items: center; border: 0; border-radius: var(--radius-sm);
+  background: none; color: var(--color-text-muted); font-weight: var(--font-weight-medium); cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard);
+}
+.aba:hover { color: var(--color-text); }
+.aba[aria-current="page"] { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-card); }
+
+.card {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+  background: var(--color-surface); box-shadow: var(--shadow-card);
+  transition: box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
+}
+.card:hover { box-shadow: var(--shadow-card-hover); }
+.card-cabecalho { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.card-titulo { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-md); line-height: var(--line-height-md); font-weight: var(--font-weight-semibold); }
+.legenda { font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-text-muted); }
+.num, .indicador-numero, .kpi-numero, .badge-contagem { font-variant-numeric: tabular-nums; }
+
+.filtros { flex-direction: row; flex-wrap: wrap; gap: var(--space-4); }
+.campo { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; min-width: 0; }
+.rotulo { font-size: var(--font-size-xs); line-height: var(--line-height-xs); font-weight: var(--font-weight-medium); color: var(--color-text-muted); text-transform: uppercase; }
+.select, .input {
+  width: 100%; height: var(--control-height); padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface);
+  transition: border-color var(--duration-fast) var(--easing-standard), box-shadow var(--duration-fast) var(--easing-standard);
+}
+.select:hover, .input:hover { border-color: var(--color-text-muted); }
+.campo[data-ativo] .rotulo { color: var(--color-text); }
+.campo[data-ativo] .select { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); font-weight: var(--font-weight-medium); }
+.select-status {
+  width: auto; height: calc(var(--control-height) - var(--space-2)); padding: 0 var(--space-2);
+  border-color: transparent; border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); cursor: pointer;
+}
+.select-status:hover { border-color: currentColor; }
+
+.indicador-numero { font-size: var(--font-size-xl); line-height: var(--line-height-xl); font-weight: var(--font-weight-semibold); }
+
+.tabela { width: 100%; border-collapse: collapse; }
+.tabela th {
+  padding: 0 var(--space-3) var(--space-2); border-bottom: 1px solid var(--color-border);
+  text-align: left; font-size: var(--font-size-xs); line-height: var(--line-height-xs);
+  font-weight: var(--font-weight-medium); color: var(--color-text-muted); text-transform: uppercase; white-space: nowrap;
+}
+.tabela td { padding: var(--space-3); border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+.tabela tbody tr:last-child td { border-bottom: 0; }
+.tabela tbody tr { transition: background-color var(--duration-fast) var(--easing-standard); }
+.tabela tbody tr:hover { background: var(--color-bg); }
+.tabela .num { text-align: right; white-space: nowrap; }
+.tabela-compacta td { padding: var(--space-2) var(--space-3); }
+.col-barra { width: 30%; }
+
+.badge {
+  display: inline-flex; align-items: center; padding: 0 var(--space-2); border-radius: var(--radius-sm);
+  background: var(--color-surface-muted); color: var(--color-text-muted);
+  font-size: var(--font-size-xs); line-height: var(--line-height-sm); font-weight: var(--font-weight-medium); white-space: nowrap;
+}
+.badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+.barra { height: var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-muted); overflow: hidden; }
+.barra-preenchimento { height: 100%; border-radius: var(--radius-full); background: var(--color-text-muted); transform-origin: left; }
+.barra-preenchimento-primaria { background: var(--color-primary); }
+.progresso { display: flex; align-items: center; gap: var(--space-2); min-width: calc(var(--space-7) * 2); }
+.progresso .barra { flex: 1; }
+.proporcao { display: flex; flex-direction: column; gap: var(--space-2); }
+.proporcao-linha { display: flex; justify-content: space-between; }
+
+.prioridades { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+.prioridade-item {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+}
+
+.arvore-desc { display: flex; align-items: center; gap: var(--space-2); }
+.recuo-1 { padding-left: var(--space-6); }
+.recuo-2 { padding-left: calc(var(--space-6) * 2); }
+.btn-expandir {
+  width: calc(var(--control-height) - var(--space-2)); height: calc(var(--control-height) - var(--space-2)); flex: none;
+  display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-muted);
+  transition: background-color var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard);
+}
+.btn-expandir:hover { background: var(--color-surface-muted); color: var(--color-text); }
+.espaco-expandir { width: calc(var(--control-height) - var(--space-2)); flex: none; }
+
+.trilha { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--color-text-muted); }
+.detalhe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5) var(--space-4); }
+.detalhe-item { display: flex; flex-direction: column; gap: var(--space-1); }
+.aviso { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-info-bg); color: var(--color-info); }
+.motivo { font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-text-muted); }
+
+.estado { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-7) var(--space-5); text-align: center; color: var(--color-text-muted); }
+.estado-icone {
+  width: var(--space-7); height: var(--space-7); display: grid; place-items: center;
+  border-radius: var(--radius-full); background: var(--color-surface-muted); color: var(--color-text-muted);
+}
+.estado-titulo { font-size: var(--font-size-md); line-height: var(--line-height-md); font-weight: var(--font-weight-semibold); color: var(--color-text); }
+.estado-vazio { padding: var(--space-6) var(--space-4); }
+.skeleton { height: var(--space-4); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.skeleton-curto { width: 40%; }
+.skeleton-alto { height: var(--space-6); width: 60%; }
+
+.toast {
+  position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 20;
+  padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-surface); box-shadow: var(--shadow-overlay); font-weight: var(--font-weight-medium);
+  opacity: 0; visibility: hidden; transform: translateY(var(--space-2));
+  transition: opacity var(--duration-base) var(--easing-standard), transform var(--duration-base) var(--easing-standard), visibility 0s linear var(--duration-base);
+}
+.toast.visivel {
+  opacity: 1; visibility: visible; transform: none;
+  transition: opacity var(--duration-base) var(--easing-standard), transform var(--duration-base) var(--easing-standard), visibility 0s;
+}
+.toast[data-tipo="sucesso"] { color: var(--color-success); }
+.toast[data-tipo="erro"] { color: var(--color-danger); }
+.dialogo {
+  width: 100%; max-width: calc(var(--content-max-width) / 3); padding: var(--space-5);
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);
+  color: var(--color-text); box-shadow: var(--shadow-overlay);
+}
+.dialogo-corpo { display: flex; flex-direction: column; gap: var(--space-4); }
+.dialogo-acoes { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* ===== Estados ===== */
+[data-status="NAO_INICIADO"], [data-status="DESLIGADO"], [data-prioridade] { background: var(--color-surface-muted); color: var(--color-text-muted); }
+[data-status="EM_ANDAMENTO"] { background: var(--color-info-bg); color: var(--color-info); }
+[data-status="EM_RISCO"], [data-status="AFASTADO"] { background: var(--color-warning-bg); color: var(--color-warning); }
+[data-status="CONCLUIDO"], [data-status="ATIVO"] { background: var(--color-success-bg); color: var(--color-success); }
+[data-prioridade="PAUTA_SEMANA"] { background: var(--color-primary); color: var(--color-on-primary); }
+[data-vencida] { background: var(--color-danger-bg); color: var(--color-danger); }
+/* Barras: cor sólida por significado */
+.barra-preenchimento[data-status="NAO_INICIADO"] { background: var(--color-text-muted); }
+.barra-preenchimento[data-status="EM_ANDAMENTO"] { background: var(--color-info); }
+.barra-preenchimento[data-status="EM_RISCO"] { background: var(--color-warning); }
+.barra-preenchimento[data-status="CONCLUIDO"] { background: var(--color-success); }
+.barra-preenchimento[data-vencida] { background: var(--color-danger); }
+:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+[disabled] { opacity: var(--opacity-disabled); cursor: not-allowed; }
+
+/* ===== Telas ===== */
+/* T01 */
+.login { min-height: 100vh; display: grid; place-items: center; padding: var(--space-5); background: var(--color-sidebar-bg); }
+.login-card { width: 100%; max-width: calc(var(--content-max-width) / 3); gap: var(--space-5); padding: var(--space-6); box-shadow: var(--shadow-overlay); }
+.login-card:hover { box-shadow: var(--shadow-overlay); }
+.login-marca { display: flex; align-items: center; gap: var(--space-3); }
+.login-marca .marca-logo { background: var(--color-primary); color: var(--color-on-primary); }
+.login-cabecalho { display: flex; flex-direction: column; gap: var(--space-1); }
+.login-nota { padding: var(--space-2) var(--space-3); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); }
+
+/* T02 */
+.filtros-painel { gap: var(--space-3); }
+.filtros-campos { display: flex; gap: var(--space-4); }
+.filtros-rodape { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-3); }
+.kpi {
+  width: 100%; text-align: left; cursor: pointer; gap: var(--space-2);
+  transition: box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard), background-color var(--duration-fast) var(--easing-standard);
+}
+.kpi:hover { border-color: var(--color-border-strong); }
+.kpi:active { background: var(--color-bg); }
+.kpi[aria-pressed="true"] { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary), var(--shadow-card); }
+.kpi-topo { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.kpi-icone {
+  width: var(--control-height); height: var(--control-height); flex: none;
+  display: grid; place-items: center; border-radius: var(--radius-md);
+  background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text-muted);
+}
+.kpi-numero { font-size: var(--font-size-xl); line-height: var(--line-height-xl); font-weight: var(--font-weight-semibold); }
+.kpi-numero[data-tom="neutro"] { color: var(--color-text); }
+.kpi-numero[data-tom="success"] { color: var(--color-success); }
+.kpi-numero[data-tom="info"] { color: var(--color-info); }
+.kpi-numero[data-tom="danger"] { color: var(--color-danger); }
+
+/* ===== Movimento (só funcional) ===== */
+@keyframes entrar-rota { from { opacity: 0; transform: translateY(var(--space-2)); } }
+@keyframes crescer { from { transform: scaleX(0); } }
+@keyframes surgir { from { opacity: 0; } }
+@keyframes dialogo-entrar { from { opacity: 0; transform: translateY(var(--space-2)); } }
+@keyframes dialogo-sair { to { opacity: 0; transform: translateY(var(--space-2)); } }
+@keyframes fundo-entrar { from { opacity: 0; } }
+@keyframes fundo-sair { to { opacity: 0; } }
+@keyframes pulso { 50% { opacity: var(--opacity-disabled); } }
+.conteudo.entrando { animation: entrar-rota var(--duration-base) var(--easing-standard); }
+.conteudo.entrando .barra-preenchimento { animation: crescer var(--duration-slow) var(--easing-standard); }
+.tabela tr.surgindo { animation: surgir var(--duration-base) var(--easing-standard); }
+.dialogo[open] { animation: dialogo-entrar var(--duration-base) var(--easing-standard); }
+.dialogo[open]::backdrop { animation: fundo-entrar var(--duration-base) var(--easing-standard); }
+.dialogo.fechando { animation: dialogo-sair var(--duration-fast) var(--easing-standard) forwards; }
+.dialogo.fechando::backdrop { animation: fundo-sair var(--duration-fast) var(--easing-standard) forwards; }
+.skeleton { animation: pulso calc(var(--duration-slow) * 4) var(--easing-standard) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<dialog class="dialogo" id="dialogo" aria-labelledby="dialogo-titulo">
+  <div class="dialogo-corpo">
+    <h2 class="card-titulo" id="dialogo-titulo"></h2>
+    <p id="dialogo-texto"></p>
+    <div class="dialogo-acoes">
+      <button type="button" class="btn btn-secundario" data-acao="cancelar-exclusao">Cancelar</button>
+      <button type="button" class="btn btn-perigo" data-acao="confirmar-exclusao">Excluir</button>
+    </div>
+  </div>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+'use strict';
+
+/* ===== 1. Constantes ===== */
+const HOJE = '2026-10-03'; // data fixa da demonstração (fuso America/Sao_Paulo)
+
+const PAPEL = Object.freeze({ ADMINISTRADOR: 'ADMINISTRADOR', COLABORADOR: 'COLABORADOR' });
+const STATUS_USUARIO = Object.freeze({ ATIVO: 'ATIVO', AFASTADO: 'AFASTADO', DESLIGADO: 'DESLIGADO' });
+const STATUS_ACAO = Object.freeze({ NAO_INICIADO: 'NAO_INICIADO', EM_ANDAMENTO: 'EM_ANDAMENTO', EM_RISCO: 'EM_RISCO', CONCLUIDO: 'CONCLUIDO' });
+const PRIORIDADE_ACAO = Object.freeze({ PAUTA_SEMANA: 'PAUTA_SEMANA', CURTO_PRAZO: 'CURTO_PRAZO', MEDIO_PRAZO: 'MEDIO_PRAZO', LONGO_PRAZO: 'LONGO_PRAZO' });
+const TIPO_ACAO = Object.freeze({
+  ESTRATEGICA: 'ESTRATEGICA', // provisório: valor não definido em docs/DOMAIN.md
+  OPERACIONAL: 'OPERACIONAL',
+  SUB_ACAO: 'SUB_ACAO', // provisório: valor não definido em docs/DOMAIN.md
+});
+
+const ROTULOS_PAPEL = Object.freeze({ ADMINISTRADOR: 'Administrador', COLABORADOR: 'Colaborador' });
+const ROTULOS_STATUS_USUARIO = Object.freeze({ ATIVO: 'Ativo', AFASTADO: 'Afastado', DESLIGADO: 'Desligado' });
+const ROTULOS_STATUS_ACAO = Object.freeze({ NAO_INICIADO: 'Não iniciado', EM_ANDAMENTO: 'Em andamento', EM_RISCO: 'Em risco', CONCLUIDO: 'Concluído' });
+const ROTULOS_PRIORIDADE = Object.freeze({ PAUTA_SEMANA: 'Pauta da semana', CURTO_PRAZO: 'Curto prazo', MEDIO_PRAZO: 'Médio prazo', LONGO_PRAZO: 'Longo prazo' });
+const ROTULOS_TIPO = Object.freeze({ ESTRATEGICA: 'Estratégica', OPERACIONAL: 'Operacional', SUB_ACAO: 'Sub-Ação' });
+const ROTULOS_TIPO_PLURAL = Object.freeze({ ESTRATEGICA: 'Estratégicas', OPERACIONAL: 'Operacionais', SUB_ACAO: 'Sub-Ações' });
+const ROTULO_VENCIDA = 'Vencida';
+const ROTULO_VENCIDAS = 'Vencidas';
+const ROTULO_VENCEM_ESTE_MES = 'Vencem neste mês';
+const MESES_ABREV = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']);
+
+// Filtros do painel: recurso de interface, não regra de domínio (pendência B17)
+const FILTRO_STATUS_PAINEL = Object.freeze({ TODOS: '', VENCIDAS: 'VENCIDAS' }); // VENCIDAS: derivado da Lei 9, não é status
+const FILTRO_PONTO_FOCAL = Object.freeze({ TODOS: '', SEM: 'SEM' });
+const ROTULOS_FILTRO = Object.freeze({
+  UNIDADE: 'Unidade', MES: 'Mês esperado', PONTO_FOCAL: 'Ponto focal', STATUS: 'Status',
+  TODAS_UNIDADES: 'Todas as unidades', TODOS_MESES: 'Todos os meses', TODOS_PONTOS_FOCAIS: 'Todos os pontos focais',
+  SEM_PONTO_FOCAL: 'Sem ponto focal', TODOS_STATUS: 'Todos os status', TODOS_TIPOS: 'Todos os tipos', TIPO: 'Tipo de ação',
+});
+
+const KPIS = Object.freeze([
+  { chave: 'ESCOPO', rotulo: 'No escopo', icone: 'acoes', tom: 'neutro', status: FILTRO_STATUS_PAINEL.TODOS },
+  { chave: 'CONCLUIDO', rotulo: 'Concluídas', icone: 'concluido', tom: 'success', status: STATUS_ACAO.CONCLUIDO },
+  { chave: 'EM_ANDAMENTO', rotulo: 'Em andamento', icone: 'andamento', tom: 'info', status: STATUS_ACAO.EM_ANDAMENTO },
+  { chave: 'VENCIDAS', rotulo: 'Vencidas', icone: 'alerta', tom: 'danger', status: FILTRO_STATUS_PAINEL.VENCIDAS },
+]);
+
+const ESTADO_TELA = Object.freeze({ NORMAL: 'NORMAL', CARREGANDO: 'CARREGANDO', VAZIO: 'VAZIO', ERRO: 'ERRO', SEM_PERMISSAO: 'SEM_PERMISSAO', NAO_ENCONTRADO: 'NAO_ENCONTRADO' });
+const ROTULOS_ESTADO_TELA = Object.freeze({ NORMAL: 'Normal', CARREGANDO: 'Carregando', VAZIO: 'Vazio', ERRO: 'Erro', SEM_PERMISSAO: 'Sem permissão', NAO_ENCONTRADO: 'Não encontrado' });
+
+const ROTAS = Object.freeze({
+  LOGIN: '#/login', PAINEL: '#/painel', ACOES: '#/acoes',
+  REUNIOES: '#/reunioes', HISTORICO_REUNIOES: '#/historico-reunioes', USUARIOS: '#/usuarios',
+});
+
+const OPERACAO = Object.freeze({
+  VER: 'VER', EDITAR: 'EDITAR', EXCLUIR: 'EXCLUIR', MUDAR_STATUS: 'MUDAR_STATUS',
+  CRIAR_ESTRATEGICA: 'CRIAR_ESTRATEGICA', CRIAR_OPERACIONAL: 'CRIAR_OPERACIONAL', CRIAR_SUB_ACAO: 'CRIAR_SUB_ACAO',
+  VER_USUARIOS: 'VER_USUARIOS',
+});
+
+const CONFIG = Object.freeze({ DURACAO_TOAST_MS: 4000 });
+// atributos que identificam um controle para devolver o foco depois do render
+const ATRIBUTOS_FOCO = Object.freeze(['data-filtro', 'data-kpi', 'data-status-acao', 'data-acao', 'data-id']);
+
+const MENSAGENS = Object.freeze({
+  EM_BREVE: 'Disponível numa próxima versão do protótipo.',
+  EM_BREVE_TELA: 'Esta tela chega numa próxima versão do protótipo.',
+  STATUS_ATUALIZADO: 'Status atualizado.',
+  ACAO_EXCLUIDA: 'Ação excluída.',
+  SEM_PERMISSAO_OPERACAO: 'Seu papel não permite esta operação.',
+  HERANCA: 'Você vê esta ação por estar ligado a uma ação acima ou abaixo dela: somente leitura.',
+  EXCLUIR_E_COM_OPERACIONAIS: 'Só é possível excluir uma estratégica com exatamente 1 operacional. Exclua as outras operacionais antes.',
+  EXCLUIR_ULTIMA_O: 'Esta é a última operacional da estratégica. Para removê-la, exclua a estratégica.',
+  CONFIRMAR_EXCLUSAO_E: 'A estratégica, a operacional dela, todas as sub-ações e o histórico serão excluídos. Não é possível desfazer.',
+  CONFIRMAR_EXCLUSAO_O: 'A operacional, todas as sub-ações dela (inclusive as que você não vê) e o histórico serão excluídos. Não é possível desfazer.',
+  CONFIRMAR_EXCLUSAO_S: 'A sub-ação e o histórico dela serão excluídos. Não é possível desfazer.',
+  NENHUMA_ACAO: 'Nenhuma ação encontrada com estes filtros.',
+  NENHUMA_ACAO_FILTRADA: 'Nenhuma ação com estes filtros. Mude o status ou limpe os filtros.',
+  NENHUMA_PAUTA: 'Nenhuma ação na pauta da semana.',
+  NENHUMA_FILHA: 'Nenhuma ação visível abaixo desta.',
+  NENHUM_PONTO_FOCAL: 'Nenhum ponto focal',
+  NENHUM_DADO: 'Nenhuma ação neste recorte.',
+  HISTORICO_EM_BREVE: 'O histórico de status chega numa próxima versão do protótipo.',
+  AGENDA_EM_BREVE: 'A agenda de reuniões chega numa próxima versão do protótipo.',
+  VAZIO: 'Nada por aqui ainda.',
+  ERRO: 'Não foi possível carregar os dados. Tente de novo em instantes.',
+  SEM_PERMISSAO: 'Seu papel não permite acessar esta tela.',
+  NAO_ENCONTRADO: 'Não encontramos o que você procura. Confira o endereço ou volte ao cockpit.',
+  LOGIN_SUBTITULO: 'Use seu email corporativo.',
+  LOGIN_DEMO: 'Protótipo: qualquer email e senha entram no cockpit.',
+  SEM_FILTROS: 'Nenhum filtro ativo',
+  FILTROS_ATIVOS: (n) => (n === 1 ? '1 filtro ativo' : `${n} filtros ativos`),
+});
+
+const ICONES = Object.freeze({
+  painel: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  acoes: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+  calendario: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  historico: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+  usuarios: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-5-6.7"/>',
+  concluido: '<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+  andamento: '<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/>',
+  alerta: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  cadeado: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  busca: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',
+  caixa: '<path d="M3 13h5l1 3h6l1-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/>',
+  abaixo: '<path d="m6 9 6 6 6-6"/>',
+  direita: '<path d="m9 6 6 6-6 6"/>',
+  mais: '<path d="M12 5v14M5 12h14"/>',
+  sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+});
+
+const MENU = Object.freeze([
+  { rota: ROTAS.PAINEL, base: 'painel', rotulo: 'Cockpit', icone: 'painel' },
+  { rota: ROTAS.ACOES, base: 'acoes', rotulo: 'Gestor de ações', icone: 'acoes' },
+  { rota: ROTAS.REUNIOES, base: 'reunioes', rotulo: 'Gestor de reuniões', icone: 'calendario' },
+  { rota: ROTAS.HISTORICO_REUNIOES, base: 'historico-reunioes', rotulo: 'Histórico de reuniões', icone: 'historico' },
+  { rota: ROTAS.USUARIOS, base: 'usuarios', rotulo: 'Usuários', icone: 'usuarios', operacao: OPERACAO.VER_USUARIOS },
+]);
+
+/* ===== 2. Mocks (formato de docs/DOMAIN.md) ===== */
+const USUARIOS = Object.freeze([
+  { id: 1, username: 'Carla Dias', email: 'carla@newbay.com', role: PAPEL.ADMINISTRADOR, status: STATUS_USUARIO.ATIVO, criadoEm: '2026-09-17T12:00:00Z' },
+  { id: 2, username: 'Diego Rocha', email: 'diego@newbay.com', role: PAPEL.ADMINISTRADOR, status: STATUS_USUARIO.ATIVO, criadoEm: '2026-09-17T12:05:00Z' },
+  { id: 3, username: 'Ana Clara', email: 'ana@newbay.com', role: PAPEL.COLABORADOR, status: STATUS_USUARIO.ATIVO, criadoEm: '2026-09-18T13:00:00Z' },
+  { id: 4, username: 'Bruno Lima', email: 'bruno@newbay.com', role: PAPEL.COLABORADOR, status: STATUS_USUARIO.ATIVO, criadoEm: '2026-09-18T13:10:00Z' },
+  { id: 5, username: 'Elisa Moura', email: 'elisa@newbay.com', role: PAPEL.COLABORADOR, status: STATUS_USUARIO.AFASTADO, criadoEm: '2026-09-19T14:00:00Z' },
+]);
+const UNIDADES = Object.freeze([
+  { id: 1, nome: 'Centro', criadoEm: '2026-09-17T12:00:00Z' },
+  { id: 2, nome: 'Norte', criadoEm: '2026-09-17T12:00:00Z' },
+  { id: 3, nome: 'Sul', criadoEm: '2026-09-17T12:00:00Z' },
+]);
+const ref = (id) => ({ id, username: USUARIOS.find((u) => u.id === id).username });
+const E = TIPO_ACAO.ESTRATEGICA, O = TIPO_ACAO.OPERACIONAL, S = TIPO_ACAO.SUB_ACAO;
+const P = PRIORIDADE_ACAO, ST = STATUS_ACAO;
+
+// progresso e vencida não ficam no mock: são calculados (Leis 7 e 9)
+let acoes = [
+  { id: 10, tipo: E, acaoPaiId: null, descricao: 'Expandir a operação na região Norte', unidadeId: 2, responsaveis: [ref(1)], pontosFocais: [ref(3)], prioridade: P.CURTO_PRAZO, mesConclusaoEstimado: '2026-12-31', status: ST.EM_ANDAMENTO },
+  { id: 11, tipo: O, acaoPaiId: 10, descricao: 'Contratar equipe comercial local', unidadeId: 2, responsaveis: [ref(4)], pontosFocais: [ref(3)], prioridade: P.PAUTA_SEMANA, mesConclusaoEstimado: '2026-10-31', status: ST.EM_RISCO },
+  { id: 12, tipo: S, acaoPaiId: 11, descricao: 'Abrir vagas no portal de empregos', unidadeId: 2, responsaveis: [ref(4)], pontosFocais: [], prioridade: P.CURTO_PRAZO, mesConclusaoEstimado: '2026-09-30', status: ST.NAO_INICIADO },
+  { id: 13, tipo: S, acaoPaiId: 11, descricao: 'Entrevistar candidatos', unidadeId: 2, responsaveis: [ref(3)], pontosFocais: [], prioridade: P.MEDIO_PRAZO, mesConclusaoEstimado: '2026-11-30', status: ST.EM_ANDAMENTO },
+  { id: 14, tipo: O, acaoPaiId: 10, descricao: 'Alugar escritório regional', unidadeId: 2, responsaveis: [ref(2)], pontosFocais: [], prioridade: P.MEDIO_PRAZO, mesConclusaoEstimado: '2026-11-30', status: ST.CONCLUIDO },
+  { id: 20, tipo: E, acaoPaiId: null, descricao: 'Reduzir custos operacionais', unidadeId: 1, responsaveis: [ref(2)], pontosFocais: [], prioridade: P.LONGO_PRAZO, mesConclusaoEstimado: '2027-03-31', status: ST.NAO_INICIADO },
+  { id: 21, tipo: O, acaoPaiId: 20, descricao: 'Renegociar contratos de fornecedores', unidadeId: 1, responsaveis: [ref(3)], pontosFocais: [ref(1)], prioridade: P.PAUTA_SEMANA, mesConclusaoEstimado: '2026-08-31', status: ST.EM_ANDAMENTO },
+  { id: 22, tipo: S, acaoPaiId: 21, descricao: 'Levantar contratos vigentes', unidadeId: 1, responsaveis: [ref(3), ref(5)], pontosFocais: [], prioridade: P.CURTO_PRAZO, mesConclusaoEstimado: '2026-09-30', status: ST.CONCLUIDO },
+  { id: 23, tipo: O, acaoPaiId: 20, descricao: 'Automatizar relatórios financeiros', unidadeId: 1, responsaveis: [ref(5)], pontosFocais: [ref(2)], prioridade: P.LONGO_PRAZO, mesConclusaoEstimado: '2027-02-28', status: ST.NAO_INICIADO },
+  { id: 30, tipo: E, acaoPaiId: null, descricao: 'Padronizar o atendimento ao cliente', unidadeId: 3, responsaveis: [ref(4)], pontosFocais: [], prioridade: P.MEDIO_PRAZO, mesConclusaoEstimado: '2026-10-31', status: ST.EM_ANDAMENTO },
+  { id: 31, tipo: O, acaoPaiId: 30, descricao: 'Treinar a equipe de atendimento', unidadeId: 3, responsaveis: [ref(1)], pontosFocais: [ref(4)], prioridade: P.CURTO_PRAZO, mesConclusaoEstimado: '2026-10-31', status: ST.EM_ANDAMENTO },
+  { id: 32, tipo: S, acaoPaiId: 31, descricao: 'Preparar material de treinamento', unidadeId: 3, responsaveis: [ref(1)], pontosFocais: [], prioridade: P.CURTO_PRAZO, mesConclusaoEstimado: '2026-10-31', status: ST.EM_ANDAMENTO },
+  { id: 33, tipo: O, acaoPaiId: 30, descricao: 'Publicar manual de atendimento', unidadeId: 3, responsaveis: [ref(2)], pontosFocais: [ref(5)], prioridade: P.MEDIO_PRAZO, mesConclusaoEstimado: '2026-12-31', status: ST.NAO_INICIADO },
+  { id: 34, tipo: S, acaoPaiId: 33, descricao: 'Revisar manual com o jurídico', unidadeId: 3, responsaveis: [ref(2)], pontosFocais: [], prioridade: P.MEDIO_PRAZO, mesConclusaoEstimado: '2026-11-30', status: ST.NAO_INICIADO },
+];
+
+/* ===== 3. Estado ===== */
+const estado = {
+  usuarioId: 1,
+  estadoTela: ESTADO_TELA.NORMAL,
+  rotaRenderizada: null,
+  expandidos: new Set(acoes.filter((a) => a.tipo !== S).map((a) => a.id)),
+  recemExpandido: null,
+  filtrosPainel: { unidadeId: '', mes: '', pontoFocal: '', status: '' },
+  filtrosAcoes: { unidadeId: '', tipo: '', status: '' },
+};
+
+const usuarioAtual = () => USUARIOS.find((u) => u.id === estado.usuarioId);
+const usuarioPorId = (id) => USUARIOS.find((u) => u.id === id);
+const unidadePorId = (id) => UNIDADES.find((u) => u.id === id);
+const acaoPorId = (id) => acoes.find((a) => a.id === id);
+const porMesEId = (a, b) => a.mesConclusaoEstimado.localeCompare(b.mesConclusaoEstimado) || a.id - b.id;
+const filhasDe = (id) => acoes.filter((a) => a.acaoPaiId === id).sort(porMesEId);
+
+function ultimoDiaDoMes(dataIso) {
+  const [ano, mes] = dataIso.split('-').map(Number);
+  const dia = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+  return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+}
+const FIM_DO_MES_CORRENTE = ultimoDiaDoMes(HOJE);
+
+// Lei 9
+const estaVencida = (a) => a.mesConclusaoEstimado < HOJE && a.status !== ST.CONCLUIDO;
+// Lei 7: sobre todas as O da E, visíveis ou não; S não contam
+function progresso(estrategica) {
+  const operacionais = filhasDe(estrategica.id);
+  if (operacionais.length === 0) return 0;
+  return operacionais.filter((o) => o.status === ST.CONCLUIDO).length / operacionais.length;
+}
+
+/* ===== 4. Permissão (única função de decisão) ===== */
+const temVinculo = (a, u) => a.responsaveis.some((r) => r.id === u.id) || a.pontosFocais.some((r) => r.id === u.id);
+function todosVinculadosAfastados(a) {
+  const ids = [...a.responsaveis, ...a.pontosFocais].map((r) => r.id);
+  return ids.every((id) => usuarioPorId(id).status === STATUS_USUARIO.AFASTADO);
+}
+function podeVer(a, u) {
+  if (a.tipo === S) return temVinculo(a, u) && !todosVinculadosAfastados(a);
+  if (u.role === PAPEL.ADMINISTRADOR) return true;
+  if (a.tipo === E) {
+    return temVinculo(a, u) || filhasDe(a.id).some((o) => temVinculo(o, u) || filhasDe(o.id).some((s) => podeVer(s, u)));
+  }
+  return temVinculo(a, u) || temVinculo(acaoPorId(a.acaoPaiId), u) || filhasDe(a.id).some((s) => podeVer(s, u));
+}
+
+function pode(operacao, alvo) {
+  const u = usuarioAtual();
+  const admin = u.role === PAPEL.ADMINISTRADOR;
+  switch (operacao) {
+    case OPERACAO.VER: return podeVer(alvo, u);
+    case OPERACAO.EDITAR:
+    case OPERACAO.EXCLUIR: return podeVer(alvo, u) && (alvo.tipo === S ? temVinculo(alvo, u) : admin);
+    case OPERACAO.MUDAR_STATUS: return podeVer(alvo, u) && (alvo.tipo === S ? temVinculo(alvo, u) : admin || temVinculo(alvo, u));
+    case OPERACAO.CRIAR_ESTRATEGICA: return admin;
+    case OPERACAO.CRIAR_OPERACIONAL: return admin && alvo.tipo === E;
+    case OPERACAO.CRIAR_SUB_ACAO: return alvo.tipo === O && podeVer(alvo, u) && (admin || temVinculo(alvo, u));
+    case OPERACAO.VER_USUARIOS: return admin;
+    default: return false;
+  }
+}
+
+// Lei 11: bloqueios de exclusão (contam todas as O, independentemente de visibilidade)
+function motivoBloqueioExclusao(a) {
+  if (a.tipo === E && filhasDe(a.id).length > 1) return MENSAGENS.EXCLUIR_E_COM_OPERACIONAIS;
+  if (a.tipo === O && filhasDe(a.acaoPaiId).length === 1) return MENSAGENS.EXCLUIR_ULTIMA_O;
+  return '';
+}
+
+/* ===== 5. Render ===== */
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const icone = (nome, classe = 'icone') => `<svg class="${classe}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nome]}</svg>`;
+const formatarMes = (iso) => { const [ano, mes] = iso.split('-'); return `${MESES_ABREV[Number(mes) - 1]}/${ano}`; };
+const formatarPercentual = (v) => `${Math.round(v * 100)}%`;
+const iniciais = (nome) => nome.split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+
+const badgeStatus = (s) => `<span class="badge" data-status="${s}">${esc(ROTULOS_STATUS_ACAO[s])}</span>`;
+const badgePrioridade = (p) => `<span class="badge" data-prioridade="${p}">${esc(ROTULOS_PRIORIDADE[p])}</span>`;
+const badgeTipo = (t) => `<span class="badge">${esc(ROTULOS_TIPO[t])}</span>`;
+const badgeVencida = (a) => (estaVencida(a) ? `<span class="badge" data-vencida>${ROTULO_VENCIDA}</span>` : '');
+const badgeStatusUsuario = (s) => `<span class="badge" data-status="${s}">${esc(ROTULOS_STATUS_USUARIO[s])}</span>`;
+const badgeContagem = (n) => `<span class="badge badge-contagem">${n}</span>`;
+
+// a ação traz só { id, username }; o status de outro usuário só vem de GET /usuarios (Administrador)
+const statusVisivel = (id) => (pode(OPERACAO.VER_USUARIOS) ? usuarioPorId(id).status : STATUS_USUARIO.ATIVO);
+function listaUsuarios(lista, vazio = '—') {
+  if (lista.length === 0) return `<span class="legenda">${esc(vazio)}</span>`;
+  return lista.map((r) => {
+    const status = statusVisivel(r.id);
+    return esc(r.username) + (status !== STATUS_USUARIO.ATIVO ? ` ${badgeStatusUsuario(status)}` : '');
+  }).join(', ');
+}
+
+function seletorStatus(a) {
+  if (!pode(OPERACAO.MUDAR_STATUS, a)) return badgeStatus(a.status);
+  const opcoes = Object.values(STATUS_ACAO)
+    .map((s) => `<option value="${s}" ${s === a.status ? 'selected' : ''}>${esc(ROTULOS_STATUS_ACAO[s])}</option>`).join('');
+  return `<select class="select select-status" data-status-acao="${a.id}" data-status="${a.status}" aria-label="Status de ${esc(a.descricao)}">${opcoes}</select>`;
+}
+
+const larguraBarra = (valor, maximo) => (maximo ? formatarPercentual(valor / maximo) : '0%');
+const barra = (largura, atributos = '', classe = '') => `<div class="barra"><div class="barra-preenchimento ${classe}" ${atributos} style="width:${largura}"></div></div>`;
+function barraProgresso(valor) {
+  return `<div class="progresso">${barra(formatarPercentual(valor), 'data-progresso')}<span class="legenda num">${formatarPercentual(valor)}</span></div>`;
+}
+
+function seletor(filtro, rotulo, valorAtual, opcoes, rotuloTodos) {
+  const itens = [`<option value="">${esc(rotuloTodos)}</option>`]
+    .concat(opcoes.map(([valor, texto]) => `<option value="${valor}" ${String(valor) === valorAtual ? 'selected' : ''}>${esc(texto)}</option>`));
+  return `<label class="campo" ${valorAtual ? 'data-ativo' : ''}><span class="rotulo">${esc(rotulo)}</span><select class="select" data-filtro="${filtro}">${itens.join('')}</select></label>`;
+}
+const opcoesUnidades = () => UNIDADES.map((u) => [u.id, u.nome]);
+
+function cabecalho(titulo, subtitulo = '', acoesHtml = '') {
+  return `<header class="cabecalho"><div><h1 class="titulo">${esc(titulo)}</h1>${subtitulo ? `<p class="subtitulo">${esc(subtitulo)}</p>` : ''}</div><div class="cabecalho-acoes">${acoesHtml}</div></header>`;
+}
+const botaoEmBreve = (rotulo, classe = 'btn-secundario', comIcone = '') =>
+  `<button type="button" class="btn ${classe}" data-acao="em-breve">${comIcone ? icone(comIcone) : ''}${esc(rotulo)}</button>`;
+const estadoVazio = (mensagem, acaoHtml = '') => `<div class="estado estado-vazio"><span class="estado-icone">${icone('caixa', 'icone-nav')}</span><p>${esc(mensagem)}</p>${acaoHtml}</div>`;
+
+function renderEstado(tipo) {
+  if (tipo === ESTADO_TELA.CARREGANDO) {
+    const cartao = '<div class="card"><div class="skeleton skeleton-curto"></div><div class="skeleton skeleton-alto"></div><div class="skeleton skeleton-curto"></div></div>';
+    return `<div class="skeleton skeleton-alto" aria-hidden="true"></div>
+      <div class="grid-4" aria-busy="true">${cartao.repeat(4)}</div>
+      <div class="card">${'<div class="skeleton"></div>'.repeat(5)}</div>`;
+  }
+  const textos = {
+    VAZIO: ['caixa', ROTULOS_ESTADO_TELA.VAZIO, MENSAGENS.VAZIO],
+    ERRO: ['alerta', ROTULOS_ESTADO_TELA.ERRO, MENSAGENS.ERRO],
+    SEM_PERMISSAO: ['cadeado', ROTULOS_ESTADO_TELA.SEM_PERMISSAO, MENSAGENS.SEM_PERMISSAO],
+    NAO_ENCONTRADO: ['busca', ROTULOS_ESTADO_TELA.NAO_ENCONTRADO, MENSAGENS.NAO_ENCONTRADO],
+  }[tipo];
+  const acao = tipo === ESTADO_TELA.ERRO
+    ? '<button type="button" class="btn btn-secundario" data-acao="tentar-de-novo">Tentar de novo</button>'
+    : `<a class="btn btn-secundario" href="${ROTAS.PAINEL}">Voltar ao cockpit</a>`;
+  return `<section class="card estado"><span class="estado-icone">${icone(textos[0], 'icone-nav')}</span><h2 class="estado-titulo">${esc(textos[1])}</h2><p>${esc(textos[2])}</p>${acao}</section>`;
+}
+
+function renderEmBreve(titulo) {
+  return cabecalho(titulo) + `<section class="card estado"><span class="estado-icone">${icone('calendario', 'icone-nav')}</span><h2 class="estado-titulo">Em breve</h2><p>${esc(MENSAGENS.EM_BREVE_TELA)}</p></section>`;
+}
+
+/* --- T01 Login --- */
+function renderLogin() {
+  return `<main class="login">
+    <form class="card login-card" data-form="login" novalidate>
+      <div class="login-marca"><span class="marca-logo">nb</span><div><div class="marca-nome">Newbay Control</div><div class="legenda">Gestor de ações</div></div></div>
+      <div class="login-cabecalho"><h1 class="titulo">Entrar</h1><p class="subtitulo">${esc(MENSAGENS.LOGIN_SUBTITULO)}</p></div>
+      <label class="campo"><span class="rotulo">Email</span><input class="input" type="email" name="email" autocomplete="username" placeholder="nome@newbay.com"></label>
+      <label class="campo"><span class="rotulo">Senha</span><input class="input" type="password" name="senha" autocomplete="current-password"></label>
+      <button type="submit" class="btn btn-primario btn-bloco">Entrar</button>
+      <p class="legenda login-nota">${esc(MENSAGENS.LOGIN_DEMO)}</p>
+    </form>
+  </main>`;
+}
+
+/* --- T02 Painel (Leis P1–P6) --- */
+function indicadores(lista) {
+  const porStatus = Object.fromEntries(Object.values(STATUS_ACAO).map((s) => [s, 0]));
+  const porPrioridade = Object.fromEntries(Object.values(PRIORIDADE_ACAO).map((p) => [p, 0]));
+  const porUnidade = new Map();
+  const porMes = new Map();
+  for (const a of lista) {
+    porStatus[a.status] += 1;
+    porPrioridade[a.prioridade] += 1;
+    porUnidade.set(a.unidadeId, (porUnidade.get(a.unidadeId) || 0) + 1);
+    const mes = a.mesConclusaoEstimado.slice(0, 7);
+    porMes.set(mes, (porMes.get(mes) || 0) + 1);
+  }
+  return {
+    total: lista.length, porStatus, porPrioridade, porUnidade, porMes,
+    vencidas: lista.filter(estaVencida).length,
+    vencemEsteMes: lista.filter((a) => a.mesConclusaoEstimado === FIM_DO_MES_CORRENTE && a.status !== ST.CONCLUIDO).length,
+  };
+}
+
+// opções dos filtros saem só das ações que o usuário vê (nada invisível aparece)
+function opcoesFiltrosPainel(visiveis) {
+  const meses = [...new Set(visiveis.map((a) => a.mesConclusaoEstimado))].sort().map((m) => [m, formatarMes(m)]);
+  const ids = new Set(visiveis.flatMap((a) => a.pontosFocais.map((r) => r.id)));
+  const pontosFocais = [...ids].map(usuarioPorId)
+    .sort((a, b) => a.username.localeCompare(b.username, 'pt-BR'))
+    .map((u) => [u.id, statusVisivel(u.id) === STATUS_USUARIO.ATIVO ? u.username : `${u.username} — ${ROTULOS_STATUS_USUARIO[u.status]}`]);
+  return {
+    meses,
+    pontosFocais: [[FILTRO_PONTO_FOCAL.SEM, ROTULOS_FILTRO.SEM_PONTO_FOCAL], ...pontosFocais],
+    status: [...Object.values(STATUS_ACAO).map((s) => [s, ROTULOS_STATUS_ACAO[s]]), [FILTRO_STATUS_PAINEL.VENCIDAS, ROTULO_VENCIDAS]],
+  };
+}
+
+function tabelaAcoes(lista, mensagemVazio) {
+  if (lista.length === 0) return estadoVazio(mensagemVazio);
+  const linhas = lista.map((a) => `<tr>
+      <td><div class="badges"><a class="link" href="#/acoes/${a.id}">${esc(a.descricao)}</a>${badgeTipo(a.tipo)}</div></td>
+      <td>${listaUsuarios(a.responsaveis)}</td>
+      <td>${esc(unidadePorId(a.unidadeId).nome)}</td>
+      <td class="num">${formatarMes(a.mesConclusaoEstimado)}</td>
+      <td><div class="badges">${badgeStatus(a.status)}${badgeVencida(a)}</div></td></tr>`).join('');
+  return `<table class="tabela"><thead><tr><th>Descrição</th><th>Responsáveis</th><th>Unidade</th><th class="num">Mês concl.</th><th>Status</th></tr></thead><tbody>${linhas}</tbody></table>`;
+}
+
+function tabelaBarras(titulo, cabecalhoCol, linhas) {
+  // linhas: [{ rotulo (html), e, o, atributos }]; barra proporcional ao maior total
+  const maximo = Math.max(0, ...linhas.map((l) => l.e + l.o));
+  const corpo = linhas.length
+    ? linhas.map((l) => `<tr><td>${l.rotulo}</td><td class="col-barra">${barra(larguraBarra(l.e + l.o, maximo), l.atributos || '')}</td><td class="num">${l.e}</td><td class="num">${l.o}</td></tr>`).join('')
+    : `<tr><td colspan="4" class="legenda">${esc(MENSAGENS.NENHUM_DADO)}</td></tr>`;
+  return `<section class="card"><h2 class="card-titulo">${esc(titulo)}</h2>
+    <table class="tabela tabela-compacta"><thead><tr><th>${esc(cabecalhoCol)}</th><th>Proporção</th><th class="num">${ROTULOS_TIPO_PLURAL[E]}</th><th class="num">${ROTULOS_TIPO_PLURAL[O]}</th></tr></thead><tbody>${corpo}</tbody></table></section>`;
+}
+
+function renderPainel() {
+  const u = usuarioAtual();
+  const f = estado.filtrosPainel;
+  const visiveis = acoes.filter((a) => podeVer(a, u));
+  const opcoes = opcoesFiltrosPainel(visiveis);
+  // filtro que deixou de existir para o usuário atual (troca de usuário) é descartado
+  if (f.mes && !opcoes.meses.some(([v]) => v === f.mes)) f.mes = '';
+  if (f.pontoFocal && !opcoes.pontosFocais.some(([v]) => String(v) === f.pontoFocal)) f.pontoFocal = '';
+
+  // Unidade, mês e ponto focal só restringem o escopo (como P5) e valem para todos os blocos
+  const restringe = (a) => (!f.unidadeId || a.unidadeId === Number(f.unidadeId))
+    && (!f.mes || a.mesConclusaoEstimado === f.mes)
+    && (!f.pontoFocal || (f.pontoFocal === FILTRO_PONTO_FOCAL.SEM ? a.pontosFocais.length === 0 : a.pontosFocais.some((r) => String(r.id) === f.pontoFocal)));
+  const confereStatus = (a) => (f.status === FILTRO_STATUS_PAINEL.TODOS ? true
+    : f.status === FILTRO_STATUS_PAINEL.VENCIDAS ? estaVencida(a) : a.status === f.status);
+
+  const escopo = visiveis.filter((a) => a.tipo !== S && restringe(a)); // P1
+  const escopoStatus = escopo.filter(confereStatus);
+  const iE = indicadores(escopo.filter((a) => a.tipo === E)); // faixa de KPIs e "Por status": sem filtro de status
+  const iO = indicadores(escopo.filter((a) => a.tipo === O));
+  const fE = indicadores(escopoStatus.filter((a) => a.tipo === E)); // blocos que respeitam o filtro de status
+  const fO = indicadores(escopoStatus.filter((a) => a.tipo === O));
+  const iS = indicadores(visiveis.filter((a) => a.tipo === S && temVinculo(a, u) && restringe(a))); // P2
+  const pauta = escopo.filter((a) => a.prioridade === P.PAUTA_SEMANA && a.status !== ST.CONCLUIDO).sort(porMesEId); // P4
+
+  const ativos = [f.unidadeId, f.mes, f.pontoFocal, f.status].filter(Boolean).length;
+  const porTipo = (e, o) => `${ROTULOS_TIPO_PLURAL[E]} ${e} · ${ROTULOS_TIPO_PLURAL[O]} ${o}`;
+  const valorKpi = {
+    ESCOPO: [iE.total + iO.total, porTipo(iE.total, iO.total)],
+    CONCLUIDO: [iE.porStatus.CONCLUIDO + iO.porStatus.CONCLUIDO, porTipo(iE.porStatus.CONCLUIDO, iO.porStatus.CONCLUIDO)],
+    EM_ANDAMENTO: [iE.porStatus.EM_ANDAMENTO + iO.porStatus.EM_ANDAMENTO, porTipo(iE.porStatus.EM_ANDAMENTO, iO.porStatus.EM_ANDAMENTO)],
+    VENCIDAS: [iE.vencidas + iO.vencidas, `${ROTULO_VENCEM_ESTE_MES}: ${iE.vencemEsteMes + iO.vencemEsteMes}`],
+  };
+  const kpis = KPIS.map((k) => `<button type="button" class="card kpi" data-acao="kpi" data-kpi="${k.chave}" aria-pressed="${k.status === f.status}">
+      <span class="kpi-topo"><span class="rotulo">${esc(k.rotulo)}</span><span class="kpi-icone">${icone(k.icone)}</span></span>
+      <span class="kpi-numero" data-tom="${k.tom}">${valorKpi[k.chave][0]}</span>
+      <span class="legenda">${esc(valorKpi[k.chave][1])}</span></button>`).join('');
+
+  const rotuloStatusFiltro = f.status === FILTRO_STATUS_PAINEL.VENCIDAS ? ROTULO_VENCIDAS : ROTULOS_STATUS_ACAO[f.status];
+  const filtradas = escopoStatus.slice().sort(porMesEId);
+  const cardFiltradas = f.status === FILTRO_STATUS_PAINEL.TODOS ? '' : `<section class="card">
+      <div class="card-cabecalho"><h2 class="card-titulo">Ações filtradas ${badgeContagem(filtradas.length)}</h2><span class="legenda">${esc(ROTULOS_FILTRO.STATUS)}: ${esc(rotuloStatusFiltro)}</span></div>
+      ${tabelaAcoes(filtradas, MENSAGENS.NENHUMA_ACAO_FILTRADA)}</section>`;
+
+  const totalF = fE.total + fO.total;
+  const linhasStatus = Object.values(STATUS_ACAO).map((s) => ({ rotulo: badgeStatus(s), e: iE.porStatus[s], o: iO.porStatus[s], atributos: `data-status="${s}"` }))
+    .concat([
+      { rotulo: `<span class="badge" data-vencida>${ROTULO_VENCIDAS}</span>`, e: iE.vencidas, o: iO.vencidas, atributos: 'data-vencida' },
+      { rotulo: `<span class="legenda">${ROTULO_VENCEM_ESTE_MES}</span>`, e: iE.vencemEsteMes, o: iO.vencemEsteMes },
+    ]);
+  const linhasUnidade = [...new Set([...fE.porUnidade.keys(), ...fO.porUnidade.keys()])]
+    .map(unidadePorId).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .map((un) => ({ rotulo: esc(un.nome), e: fE.porUnidade.get(un.id) || 0, o: fO.porUnidade.get(un.id) || 0 }));
+  const linhasMes = [...new Set([...fE.porMes.keys(), ...fO.porMes.keys()])].sort()
+    .map((m) => ({ rotulo: `<span class="num">${formatarMes(m)}</span>`, e: fE.porMes.get(m) || 0, o: fO.porMes.get(m) || 0 }));
+  const maxSub = Math.max(0, iS.vencidas, ...Object.values(iS.porStatus));
+
+  const acoesCabecalho = (pode(OPERACAO.CRIAR_ESTRATEGICA) ? botaoEmBreve('Nova ação', 'btn-primario', 'mais') : '')
+    + botaoEmBreve('Agendar reunião', 'btn-secundario', 'calendario');
+  const abas = `<div class="abas" role="tablist"><button type="button" class="aba" aria-current="page">Geral</button><button type="button" class="aba" data-acao="em-breve">Semanal</button></div>`;
+
+  return cabecalho('Cockpit', '', abas + acoesCabecalho) + `
+    <section class="card filtros-painel" aria-label="Filtros do painel">
+      <div class="filtros-campos">
+        ${seletor('filtrosPainel.unidadeId', ROTULOS_FILTRO.UNIDADE, f.unidadeId, opcoesUnidades(), ROTULOS_FILTRO.TODAS_UNIDADES)}
+        ${seletor('filtrosPainel.mes', ROTULOS_FILTRO.MES, f.mes, opcoes.meses, ROTULOS_FILTRO.TODOS_MESES)}
+        ${seletor('filtrosPainel.pontoFocal', ROTULOS_FILTRO.PONTO_FOCAL, f.pontoFocal, opcoes.pontosFocais, ROTULOS_FILTRO.TODOS_PONTOS_FOCAIS)}
+        ${seletor('filtrosPainel.status', ROTULOS_FILTRO.STATUS, f.status, opcoes.status, ROTULOS_FILTRO.TODOS_STATUS)}
+      </div>
+      <div class="filtros-rodape"><span class="legenda" aria-live="polite">${esc(ativos ? MENSAGENS.FILTROS_ATIVOS(ativos) : MENSAGENS.SEM_FILTROS)}</span>
+        <button type="button" class="btn btn-terciario" data-acao="limpar-filtros" ${ativos ? '' : 'disabled'}>Limpar filtros</button></div>
+    </section>
+    <div class="grid-4">${kpis}</div>
+    ${cardFiltradas}
+    <div class="grid-2">
+      <section class="card"><h2 class="card-titulo">Estratégicas e operacionais</h2>
+        <div class="proporcao"><div class="proporcao-linha"><span>${ROTULOS_TIPO_PLURAL[E]}</span><span class="legenda num">${fE.total} (${larguraBarra(fE.total, totalF)})</span></div>
+          ${barra(larguraBarra(fE.total, totalF), '', 'barra-preenchimento-primaria')}</div>
+        <div class="proporcao"><div class="proporcao-linha"><span>${ROTULOS_TIPO_PLURAL[O]}</span><span class="legenda num">${fO.total} (${larguraBarra(fO.total, totalF)})</span></div>
+          ${barra(larguraBarra(fO.total, totalF))}</div>
+      </section>
+      <section class="card"><h2 class="card-titulo">Por prioridade</h2>
+        <div class="prioridades">${Object.values(PRIORIDADE_ACAO).map((p) => `<div class="prioridade-item">${badgePrioridade(p)}<span class="indicador-numero">${fE.porPrioridade[p] + fO.porPrioridade[p]}</span><span class="legenda num">${esc(porTipo(fE.porPrioridade[p], fO.porPrioridade[p]))}</span></div>`).join('')}</div>
+      </section>
+    </div>
+    <div class="grid-2 grid-topo">
+      ${tabelaBarras('Por status', 'Status', linhasStatus)}
+      ${tabelaBarras('Por unidade', 'Unidade', linhasUnidade)}
+    </div>
+    ${tabelaBarras('Por mês de conclusão', 'Mês', linhasMes)}
+    <div class="grid-principal">
+      <section class="card">
+        <div class="card-cabecalho"><h2 class="card-titulo">Pauta da semana ${badgeContagem(pauta.length)}</h2><a class="link-discreto" href="${ROTAS.ACOES}">Ver todas no gestor de ações</a></div>
+        ${tabelaAcoes(pauta, MENSAGENS.NENHUMA_PAUTA)}
+      </section>
+      <div class="coluna">
+        <section class="card"><h2 class="card-titulo">Minhas sub-ações ${badgeContagem(iS.total)}</h2>
+          <table class="tabela tabela-compacta"><tbody>
+            ${Object.values(STATUS_ACAO).map((s) => `<tr><td>${badgeStatus(s)}</td><td class="col-barra">${barra(larguraBarra(iS.porStatus[s], maxSub), `data-status="${s}"`)}</td><td class="num">${iS.porStatus[s]}</td></tr>`).join('')}
+            <tr><td><span class="badge" data-vencida>${ROTULO_VENCIDAS}</span></td><td class="col-barra">${barra(larguraBarra(iS.vencidas, maxSub), 'data-vencida')}</td><td class="num">${iS.vencidas}</td></tr>
+          </tbody></table>
+        </section>
+        <section class="card"><h2 class="card-titulo">Agenda de reuniões</h2><p class="legenda">${esc(MENSAGENS.AGENDA_EM_BREVE)}</p></section>
+      </div>
+    </div>`;
+}
+
+/* --- T04 Lista e árvore de ações --- */
+function renderAcoes() {
+  const u = usuarioAtual();
+  const f = estado.filtrosAcoes;
+  const confere = (a) => (!f.unidadeId || a.unidadeId === Number(f.unidadeId)) && (!f.tipo || a.tipo === f.tipo) && (!f.status || a.status === f.status);
+  const visiveis = (lista) => lista.filter((a) => podeVer(a, u));
+  // nó aparece se confere com o filtro ou tem descendente visível que confere
+  const aparece = (a) => confere(a) || visiveis(filhasDe(a.id)).some(aparece);
+
+  const linhas = [];
+  const adicionar = (a, nivel, surgindo) => {
+    if (!aparece(a)) return;
+    const filhas = visiveis(filhasDe(a.id));
+    const aberto = estado.expandidos.has(a.id);
+    const expandir = filhas.length
+      ? `<button type="button" class="btn-expandir" data-acao="expandir" data-id="${a.id}" aria-expanded="${aberto}" aria-label="${aberto ? 'Recolher' : 'Expandir'} ${esc(a.descricao)}">${icone(aberto ? 'abaixo' : 'direita')}</button>`
+      : '<span class="espaco-expandir"></span>';
+    linhas.push(`<tr ${surgindo ? 'class="surgindo"' : ''}>
+      <td><div class="arvore-desc ${nivel ? `recuo-${nivel}` : ''}">${expandir}<a class="link" href="#/acoes/${a.id}">${esc(a.descricao)}</a>${badgeTipo(a.tipo)}</div></td>
+      <td>${listaUsuarios(a.responsaveis)}</td>
+      <td>${listaUsuarios(a.pontosFocais)}</td>
+      <td>${esc(unidadePorId(a.unidadeId).nome)}</td>
+      <td class="num">${formatarMes(a.mesConclusaoEstimado)}</td>
+      <td>${badgePrioridade(a.prioridade)}</td>
+      <td>${a.tipo === E ? barraProgresso(progresso(a)) : '<span class="legenda">—</span>'}</td>
+      <td><div class="badges">${seletorStatus(a)}${badgeVencida(a)}</div></td>
+    </tr>`);
+    if (aberto) filhas.forEach((filha) => adicionar(filha, nivel + 1, surgindo || estado.recemExpandido === a.id));
+  };
+  visiveis(acoes.filter((a) => a.tipo === E)).sort(porMesEId).forEach((a) => adicionar(a, 0, false));
+
+  const total = acoes.filter((a) => podeVer(a, u) && confere(a)).length;
+  const abas = `<div class="abas" role="tablist"><button type="button" class="aba" aria-current="page">Visão geral</button><button type="button" class="aba" data-acao="em-breve">Pauta da semana</button><button type="button" class="aba" data-acao="em-breve">Gerador de ações</button></div>`;
+  const novaAcao = pode(OPERACAO.CRIAR_ESTRATEGICA) ? botaoEmBreve('Nova ação', 'btn-primario', 'mais') : '';
+
+  return cabecalho('Gestor de ações', 'Acompanhe e controle o fluxo de atividades estratégicas e operacionais', abas + novaAcao) + `
+    <section class="card filtros">
+      ${seletor('filtrosAcoes.unidadeId', ROTULOS_FILTRO.UNIDADE, f.unidadeId, opcoesUnidades(), ROTULOS_FILTRO.TODAS_UNIDADES)}
+      ${seletor('filtrosAcoes.tipo', ROTULOS_FILTRO.TIPO, f.tipo, Object.values(TIPO_ACAO).map((t) => [t, ROTULOS_TIPO[t]]), ROTULOS_FILTRO.TODOS_TIPOS)}
+      ${seletor('filtrosAcoes.status', ROTULOS_FILTRO.STATUS, f.status, Object.values(STATUS_ACAO).map((s) => [s, ROTULOS_STATUS_ACAO[s]]), ROTULOS_FILTRO.TODOS_STATUS)}
+    </section>
+    <section class="card">
+      <div class="card-cabecalho"><h2 class="card-titulo">Ações ${badgeContagem(total)}</h2></div>
+      ${linhas.length
+        ? `<table class="tabela"><thead><tr><th>Descrição</th><th>Responsáveis</th><th>Ponto focal</th><th>Unidade</th><th class="num">Mês concl.</th><th>Prioridade</th><th>Progresso</th><th>Status</th></tr></thead><tbody>${linhas.join('')}</tbody></table>`
+        : estadoVazio(MENSAGENS.NENHUMA_ACAO, novaAcao)}
+    </section>`;
+}
+
+/* --- T05 Detalhe da ação --- */
+function renderDetalhe(id) {
+  const u = usuarioAtual();
+  const a = acaoPorId(id);
+  if (!a || !pode(OPERACAO.VER, a)) return renderEstado(ESTADO_TELA.NAO_ENCONTRADO); // 404 idêntico
+
+  const trilha = [];
+  for (let pai = a.acaoPaiId ? acaoPorId(a.acaoPaiId) : null; pai; pai = pai.acaoPaiId ? acaoPorId(pai.acaoPaiId) : null) {
+    trilha.unshift(`<a class="link-discreto" href="#/acoes/${pai.id}">${esc(ROTULOS_TIPO[pai.tipo])}: ${esc(pai.descricao)}</a>`);
+  }
+  trilha.unshift(`<a class="link-discreto" href="${ROTAS.ACOES}">Gestor de ações</a>`);
+
+  const bloqueio = motivoBloqueioExclusao(a);
+  let botoes = '';
+  if (pode(OPERACAO.EDITAR, a)) botoes += botaoEmBreve('Editar');
+  if (pode(OPERACAO.EXCLUIR, a)) {
+    botoes += `<button type="button" class="btn btn-perigo" data-acao="excluir" data-id="${a.id}" ${bloqueio ? `disabled title="${esc(bloqueio)}"` : ''}>Excluir</button>`;
+  }
+  const somenteLeitura = !pode(OPERACAO.EDITAR, a) && !pode(OPERACAO.MUDAR_STATUS, a);
+
+  const item = (rotulo, valor) => `<div class="detalhe-item"><dt class="rotulo">${esc(rotulo)}</dt><dd>${valor}</dd></div>`;
+  const filhas = filhasDe(a.id).filter((x) => podeVer(x, u));
+  const tipoFilha = a.tipo === E ? O : S;
+  const podeCriarFilha = a.tipo === E ? pode(OPERACAO.CRIAR_OPERACIONAL, a) : pode(OPERACAO.CRIAR_SUB_ACAO, a);
+  const botaoNovaFilha = podeCriarFilha ? botaoEmBreve(`Nova ${a.tipo === E ? 'operacional' : 'sub-ação'}`, 'btn-secundario', 'mais') : '';
+
+  const cardFilhas = a.tipo === S ? '' : `<section class="card">
+      <div class="card-cabecalho"><h2 class="card-titulo">${ROTULOS_TIPO_PLURAL[tipoFilha]} ${badgeContagem(filhas.length)}</h2>${botaoNovaFilha}</div>
+      ${filhas.length ? `<table class="tabela"><thead><tr><th>Descrição</th><th>Responsáveis</th><th class="num">Mês concl.</th><th>Prioridade</th><th>Status</th></tr></thead><tbody>
+        ${filhas.map((x) => `<tr><td><a class="link" href="#/acoes/${x.id}">${esc(x.descricao)}</a></td><td>${listaUsuarios(x.responsaveis)}</td><td class="num">${formatarMes(x.mesConclusaoEstimado)}</td><td>${badgePrioridade(x.prioridade)}</td><td><div class="badges">${seletorStatus(x)}${badgeVencida(x)}</div></td></tr>`).join('')}
+      </tbody></table>` : estadoVazio(MENSAGENS.NENHUMA_FILHA)}
+    </section>`;
+
+  return `<nav class="trilha" aria-label="Trilha">${trilha.join('<span aria-hidden="true">/</span>')}</nav>`
+    + cabecalho(a.descricao, '', botoes)
+    + `<div class="badges">${badgeTipo(a.tipo)}${badgeStatus(a.status)}${badgeVencida(a)}</div>`
+    + (bloqueio && pode(OPERACAO.EXCLUIR, a) ? `<p class="motivo">${esc(bloqueio)}</p>` : '')
+    + (somenteLeitura ? `<p class="aviso">${esc(MENSAGENS.HERANCA)}</p>` : '')
+    + `<section class="card"><h2 class="card-titulo">Dados da ação</h2><dl class="detalhe-grid">
+        ${item('Tipo', esc(ROTULOS_TIPO[a.tipo]))}
+        ${item('Status', `<div class="badges">${seletorStatus(a)}${badgeVencida(a)}</div>`)}
+        ${item('Prioridade', badgePrioridade(a.prioridade))}
+        ${item('Unidade', esc(unidadePorId(a.unidadeId).nome))}
+        ${item('Mês de conclusão', formatarMes(a.mesConclusaoEstimado))}
+        ${a.tipo === E ? item('Progresso', barraProgresso(progresso(a))) : ''}
+        ${item('Responsáveis', listaUsuarios(a.responsaveis))}
+        ${item('Pontos focais', listaUsuarios(a.pontosFocais, MENSAGENS.NENHUM_PONTO_FOCAL))}
+      </dl></section>`
+    + cardFilhas
+    + `<section class="card"><h2 class="card-titulo">Histórico de status</h2><p class="legenda">${esc(MENSAGENS.HISTORICO_EM_BREVE)}</p></section>`;
+}
+
+/* --- Shell persistente (criado uma vez; só o conteúdo é re-renderizado) --- */
+function renderShell() {
+  const itens = MENU.map((m) => `<a class="nav-item" href="${m.rota}" data-menu="${m.base}" aria-label="${esc(m.rotulo)}">${icone(m.icone, 'icone-nav')}<span class="recolhivel">${esc(m.rotulo)}</span></a>`).join('');
+  const usuarios = USUARIOS.filter((x) => x.status === STATUS_USUARIO.ATIVO) // inativo não entra (401/403)
+    .map((x) => `<option value="${x.id}">${esc(x.username)} — ${esc(ROTULOS_PAPEL[x.role])}</option>`).join('');
+  const estados = Object.values(ESTADO_TELA).map((s) => `<option value="${s}">${esc(ROTULOS_ESTADO_TELA[s])}</option>`).join('');
+  return `<div class="shell">
+    <aside class="sidebar" aria-label="Navegação">
+      <div class="marca"><span class="marca-logo" aria-hidden="true">nb</span><div class="recolhivel"><div class="marca-nome">Newbay Control</div><div class="marca-sub">Gestor de ações</div></div></div>
+      <nav class="nav" aria-label="Principal">${itens}</nav>
+      <div class="cartao-usuario">
+        <div class="usuario-linha"><span class="avatar" id="usuario-iniciais" aria-hidden="true"></span>
+          <div class="usuario-texto recolhivel"><span class="cartao-usuario-nome" id="usuario-nome"></span><span class="cartao-usuario-papel" id="usuario-papel"></span></div></div>
+        <button type="button" class="btn-sair" data-acao="sair" aria-label="Sair">${icone('sair')}<span class="recolhivel">Sair</span></button>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="demo" aria-label="Controle de demonstração"><span class="demo-titulo">Demonstração</span>
+        <label>Usuário <select class="select" data-campo="usuario">${usuarios}</select></label>
+        <label>Estado da tela <select class="select" data-campo="estado-tela">${estados}</select></label>
+        <span>Hoje: ${HOJE.split('-').reverse().join('/')}</span></div>
+      <main class="conteudo" id="conteudo"></main>
+    </div>
+  </div>`;
+}
+
+function atualizarShell(base) {
+  const u = usuarioAtual();
+  document.querySelectorAll('[data-menu]').forEach((link) => {
+    const item = MENU.find((m) => m.base === link.dataset.menu);
+    link.hidden = Boolean(item.operacao) && !pode(item.operacao);
+    if (item.base === base) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  });
+  document.getElementById('usuario-iniciais').textContent = iniciais(u.username);
+  document.getElementById('usuario-nome').textContent = u.username;
+  document.getElementById('usuario-papel').textContent = ROTULOS_PAPEL[u.role];
+  document.querySelector('[data-campo="usuario"]').value = String(estado.usuarioId);
+  document.querySelector('[data-campo="estado-tela"]').value = estado.estadoTela;
+}
+
+/* ===== 6. Roteador por hash ===== */
+function renderTela(base, id) {
+  if (estado.estadoTela !== ESTADO_TELA.NORMAL) return renderEstado(estado.estadoTela);
+  const itemMenu = MENU.find((m) => m.base === base);
+  switch (base) {
+    case 'painel': return renderPainel();
+    case 'acoes': return id === undefined ? renderAcoes() : renderDetalhe(Number(id));
+    case 'reunioes':
+    case 'historico-reunioes': return renderEmBreve(itemMenu.rotulo);
+    case 'usuarios': return pode(OPERACAO.VER_USUARIOS) ? renderEmBreve(itemMenu.rotulo) : renderEstado(ESTADO_TELA.SEM_PERMISSAO);
+    default: return renderEstado(ESTADO_TELA.NAO_ENCONTRADO);
+  }
+}
+
+function seletorDeFoco(el) {
+  if (!el || el === document.body) return null;
+  const partes = ATRIBUTOS_FOCO.filter((a) => el.hasAttribute(a)).map((a) => `[${a}="${el.getAttribute(a)}"]`);
+  return partes.length ? partes.join('') : null;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  const hash = location.hash;
+  const [base, id] = hash.replace(/^#\//, '').split('/');
+  const rotaMudou = hash !== estado.rotaRenderizada;
+  estado.rotaRenderizada = hash;
+  if (base === 'login') { app.innerHTML = renderLogin(); return; }
+  if (!document.getElementById('conteudo')) app.innerHTML = renderShell();
+  atualizarShell(base);
+
+  const conteudo = document.getElementById('conteudo');
+  const foco = conteudo.contains(document.activeElement) ? seletorDeFoco(document.activeElement) : null;
+  conteudo.classList.remove('entrando'); // animação de entrada só na troca de rota
+  conteudo.innerHTML = renderTela(base, id);
+  if (rotaMudou) {
+    void conteudo.offsetWidth; // reinicia a animação
+    conteudo.classList.add('entrando');
+    window.scrollTo(0, 0);
+  }
+  if (foco) {
+    const alvo = conteudo.querySelector(foco);
+    if (alvo && !alvo.disabled) alvo.focus({ preventScroll: true });
+  }
+  estado.recemExpandido = null;
+}
+
+function irPara(destino) {
+  if (location.hash === destino) render(); else location.hash = destino;
+}
+
+let timerToast;
+function toast(mensagem, tipo = 'sucesso') {
+  const el = document.getElementById('toast');
+  el.textContent = mensagem;
+  el.dataset.tipo = tipo;
+  el.classList.add('visivel');
+  clearTimeout(timerToast);
+  timerToast = setTimeout(() => el.classList.remove('visivel'), CONFIG.DURACAO_TOAST_MS);
+}
+
+function mudarStatus(id, novo) {
+  const a = acaoPorId(id);
+  if (!a || !pode(OPERACAO.MUDAR_STATUS, a)) { toast(MENSAGENS.SEM_PERMISSAO_OPERACAO, 'erro'); render(); return; }
+  if (a.status === novo) return; // Lei 12: mesmo status não tem efeito
+  a.status = novo;
+  toast(MENSAGENS.STATUS_ATUALIZADO);
+  render();
+}
+
+function abrirConfirmacao(id) {
+  const a = acaoPorId(id);
+  if (!a || !pode(OPERACAO.EXCLUIR, a) || motivoBloqueioExclusao(a)) return;
+  const dialogo = document.getElementById('dialogo');
+  document.getElementById('dialogo-titulo').textContent = `Excluir ${ROTULOS_TIPO[a.tipo].toLowerCase()}?`;
+  document.getElementById('dialogo-texto').textContent = { [E]: MENSAGENS.CONFIRMAR_EXCLUSAO_E, [O]: MENSAGENS.CONFIRMAR_EXCLUSAO_O, [S]: MENSAGENS.CONFIRMAR_EXCLUSAO_S }[a.tipo];
+  dialogo.dataset.id = String(id);
+  dialogo.showModal();
+}
+
+function fecharDialogo(depois) {
+  const dialogo = document.getElementById('dialogo');
+  const fim = () => { dialogo.classList.remove('fechando'); dialogo.close(); if (depois) depois(); };
+  dialogo.classList.add('fechando');
+  if (getComputedStyle(dialogo).animationName === 'none') fim();
+  else dialogo.addEventListener('animationend', fim, { once: true });
+}
+
+// Leis 10 e 11: exclusão física com cascata, independente de visibilidade
+function excluirEmCascata(id) {
+  const a = acaoPorId(id);
+  const ids = new Set([id]);
+  let cresceu = true;
+  while (cresceu) {
+    cresceu = false;
+    for (const x of acoes) {
+      if (x.acaoPaiId !== null && ids.has(x.acaoPaiId) && !ids.has(x.id)) { ids.add(x.id); cresceu = true; }
+    }
+  }
+  acoes = acoes.filter((x) => !ids.has(x.id));
+  toast(MENSAGENS.ACAO_EXCLUIDA);
+  const pai = a.acaoPaiId ? acaoPorId(a.acaoPaiId) : null;
+  irPara(pai && pode(OPERACAO.VER, pai) ? `#/acoes/${pai.id}` : ROTAS.ACOES);
+}
+
+document.addEventListener('click', (evento) => {
+  const alvo = evento.target.closest('[data-acao]');
+  if (!alvo) return;
+  const dialogo = document.getElementById('dialogo');
+  switch (alvo.dataset.acao) {
+    case 'expandir': {
+      const id = Number(alvo.dataset.id);
+      if (estado.expandidos.has(id)) estado.expandidos.delete(id);
+      else { estado.expandidos.add(id); estado.recemExpandido = id; }
+      render();
+      break;
+    }
+    case 'kpi': {
+      const kpi = KPIS.find((k) => k.chave === alvo.dataset.kpi);
+      // clicar no cartão ativo volta para "No escopo"
+      estado.filtrosPainel.status = kpi.status === estado.filtrosPainel.status ? FILTRO_STATUS_PAINEL.TODOS : kpi.status;
+      render();
+      break;
+    }
+    case 'limpar-filtros':
+      Object.assign(estado.filtrosPainel, { unidadeId: '', mes: '', pontoFocal: '', status: FILTRO_STATUS_PAINEL.TODOS });
+      render();
+      document.querySelector('[data-filtro="filtrosPainel.unidadeId"]').focus(); // o botão fica desabilitado
+      break;
+    case 'em-breve': toast(MENSAGENS.EM_BREVE); break;
+    case 'excluir': abrirConfirmacao(Number(alvo.dataset.id)); break;
+    case 'cancelar-exclusao': fecharDialogo(); break;
+    case 'confirmar-exclusao': fecharDialogo(() => excluirEmCascata(Number(dialogo.dataset.id))); break;
+    case 'tentar-de-novo': estado.estadoTela = ESTADO_TELA.NORMAL; render(); break;
+    case 'sair': irPara(ROTAS.LOGIN); break;
+    default: break;
+  }
+});
+
+document.addEventListener('change', (evento) => {
+  const alvo = evento.target;
+  if (alvo.matches('[data-campo="usuario"]')) { estado.usuarioId = Number(alvo.value); render(); return; }
+  if (alvo.matches('[data-campo="estado-tela"]')) { estado.estadoTela = alvo.value; render(); return; }
+  if (alvo.matches('[data-filtro]')) {
+    const [grupo, chave] = alvo.dataset.filtro.split('.');
+    estado[grupo][chave] = alvo.value;
+    render();
+    return;
+  }
+  if (alvo.matches('[data-status-acao]')) mudarStatus(Number(alvo.dataset.statusAcao), alvo.value);
+});
+
+document.addEventListener('submit', (evento) => {
+  if (!evento.target.matches('[data-form="login"]')) return;
+  evento.preventDefault();
+  irPara(ROTAS.PAINEL);
+});
+
+document.getElementById('dialogo').addEventListener('cancel', (evento) => { evento.preventDefault(); fecharDialogo(); });
+window.addEventListener('hashchange', render);
+
+/* ===== 7. Inicialização ===== */
+if (!location.hash) location.hash = ROTAS.LOGIN;
+render();
+</script>
+</body>
+</html>
