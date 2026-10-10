@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NBC — protótipo v3</title>
+<title>NBC — protótipo v5</title>
 <style>
 /* ===== Tokens (docs/DESIGN.md) ===== */
 :root {
@@ -67,6 +67,13 @@
   --shadow-card-hover: 0 4px 12px rgb(15 23 42 / 0.08);
   --easing-standard: cubic-bezier(0.2, 0, 0, 1);
   --duration-slow: 400ms;
+  /* Tokens só deste protótipo (autorizados no INSTRUCTION.md da v4; fora de docs/DESIGN.md) */
+  --kanban-column-width: 288px;
+  --drawer-width: 480px;
+  /* Tokens só deste protótipo (aprovados no plano da v5; fora de docs/DESIGN.md) */
+  --calendar-day-min-height: 120px;
+  --calendar-bar-height: 24px;
+  --calendar-bar-height-week: 72px;
 }
 
 /* ===== Base ===== */
@@ -81,7 +88,7 @@ body {
   color: var(--color-text);
   background: var(--color-bg);
 }
-h1, h2, h3, p, dl, dd { margin: 0; }
+h1, h2, h3, h4, p, dl, dd { margin: 0; }
 button, select, input { font: inherit; color: inherit; }
 a { color: inherit; }
 
@@ -141,12 +148,7 @@ a { color: inherit; }
   display: flex; align-items: center; gap: var(--space-3);
   padding-left: calc((var(--sidebar-width-collapsed) - var(--control-height)) / 2 - var(--space-3));
 }
-.avatar {
-  width: var(--control-height); height: var(--control-height); flex: none;
-  display: grid; place-items: center; border-radius: var(--radius-full);
-  background: var(--color-sidebar-text-muted); color: var(--color-sidebar-bg);
-  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold);
-}
+.sidebar .avatar { background: var(--color-sidebar-text-muted); color: var(--color-sidebar-bg); }
 .usuario-texto { display: flex; flex-direction: column; min-width: 0; }
 .cartao-usuario-nome { font-weight: var(--font-weight-semibold); overflow: hidden; text-overflow: ellipsis; }
 .cartao-usuario-papel { font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-sidebar-text-muted); }
@@ -188,6 +190,15 @@ a { color: inherit; }
 
 /* ===== Componentes ===== */
 .icone { width: var(--space-4); height: var(--space-4); flex: none; }
+/* Avatar: componente único; .avatar-sm é a variante dos cartões e faixas */
+.avatar {
+  width: var(--control-height); height: var(--control-height); flex: none;
+  display: grid; place-items: center; border-radius: var(--radius-full);
+  background: var(--color-surface-muted); color: var(--color-text);
+  font-size: var(--font-size-xs); line-height: var(--line-height-xs); font-weight: var(--font-weight-semibold);
+}
+.avatar-sm { width: var(--space-5); height: var(--space-5); border: 1px solid var(--color-surface); }
+.avatar-sm + .avatar-sm { margin-left: calc(var(--space-1) * -1); }
 .icone-nav { width: var(--font-size-lg); height: var(--font-size-lg); flex: none; }
 
 .btn {
@@ -209,6 +220,12 @@ a { color: inherit; }
 .link:hover { text-decoration: underline; }
 .link-discreto { color: var(--color-text-muted); text-decoration: none; }
 .link-discreto:hover { color: var(--color-text); text-decoration: underline; }
+.link-botao {
+  padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+  color: var(--color-text); font-weight: var(--font-weight-medium);
+}
+.link-botao:hover { text-decoration: underline; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 .abas { display: inline-flex; gap: var(--space-1); padding: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
 .aba {
@@ -218,7 +235,8 @@ a { color: inherit; }
   transition: background-color var(--duration-fast) var(--easing-standard), color var(--duration-fast) var(--easing-standard);
 }
 .aba:hover { color: var(--color-text); }
-.aba[aria-current="page"] { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-card); }
+.aba[aria-current="page"], .aba[aria-pressed="true"] { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-card); }
+.aba .icone { margin-right: var(--space-1); }
 
 .card {
   display: flex; flex-direction: column; gap: var(--space-4);
@@ -249,6 +267,10 @@ a { color: inherit; }
   font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); cursor: pointer;
 }
 .select-status:hover { border-color: currentColor; }
+.busca { position: relative; display: flex; flex: 0 1 calc(var(--kanban-column-width) + var(--space-7)); min-width: 0; }
+.busca .icone { position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
+.busca .input { padding-left: calc(var(--space-3) * 2 + var(--space-4)); }
+.campo[data-ativo] .input, .busca[data-ativo] .input { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
 
 .indicador-numero { font-size: var(--font-size-xl); line-height: var(--line-height-xl); font-weight: var(--font-weight-semibold); }
 
@@ -273,8 +295,8 @@ a { color: inherit; }
 }
 .badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 
-.barra { height: var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-muted); overflow: hidden; }
-.barra-preenchimento { height: 100%; border-radius: var(--radius-full); background: var(--color-text-muted); transform-origin: left; }
+.barra { display: block; height: var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-muted); overflow: hidden; }
+.barra-preenchimento { display: block; height: 100%; border-radius: var(--radius-full); background: var(--color-text-muted); transform-origin: left; }
 .barra-preenchimento-primaria { background: var(--color-primary); }
 .progresso { display: flex; align-items: center; gap: var(--space-2); min-width: calc(var(--space-7) * 2); }
 .progresso .barra { flex: 1; }
@@ -318,6 +340,7 @@ a { color: inherit; }
 
 .toast {
   position: fixed; right: var(--space-5); bottom: var(--space-5); z-index: 20;
+  display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-3) var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md);
   background: var(--color-surface); box-shadow: var(--shadow-overlay); font-weight: var(--font-weight-medium);
   opacity: 0; visibility: hidden; transform: translateY(var(--space-2));
@@ -329,6 +352,7 @@ a { color: inherit; }
 }
 .toast[data-tipo="sucesso"] { color: var(--color-success); }
 .toast[data-tipo="erro"] { color: var(--color-danger); }
+.toast-acao { height: calc(var(--control-height) - var(--space-2)); padding: 0 var(--space-3); color: var(--color-text); text-decoration: underline; }
 .dialogo {
   width: 100%; max-width: calc(var(--content-max-width) / 3); padding: var(--space-5);
   border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface);
@@ -336,6 +360,22 @@ a { color: inherit; }
 }
 .dialogo-corpo { display: flex; flex-direction: column; gap: var(--space-4); }
 .dialogo-acoes { display: flex; justify-content: flex-end; gap: var(--space-3); }
+.gaveta {
+  inset: 0 0 0 auto; margin: 0 0 0 auto; padding: 0;
+  width: var(--drawer-width); max-width: 100%; height: 100%; max-height: 100%; overflow-y: auto;
+  border: 0; border-left: 1px solid var(--color-border); background: var(--color-surface);
+  color: var(--color-text); box-shadow: var(--shadow-overlay);
+}
+.gaveta-corpo { display: flex; flex-direction: column; gap: var(--space-5); padding: var(--space-5); }
+.gaveta-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
+.gaveta-titulo { font-size: var(--font-size-lg); line-height: var(--line-height-lg); font-weight: var(--font-weight-semibold); }
+.gaveta-titulo:focus { outline: 0; } /* não interativo: recebe foco por script só para o leitor de tela anunciar a ação */
+.gaveta-cabecalho { display: flex; flex-direction: column; gap: var(--space-3); }
+.gaveta-secao { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.gaveta .detalhe-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lista-curta { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lista-curta li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
+.lista-curta li:last-child { border-bottom: 0; }
 
 /* ===== Estados ===== */
 [data-status="NAO_INICIADO"], [data-status="DESLIGADO"], [data-prioridade] { background: var(--color-surface-muted); color: var(--color-text-muted); }
@@ -345,10 +385,10 @@ a { color: inherit; }
 [data-prioridade="PAUTA_SEMANA"] { background: var(--color-primary); color: var(--color-on-primary); }
 [data-vencida] { background: var(--color-danger-bg); color: var(--color-danger); }
 /* Barras: cor sólida por significado */
-.barra-preenchimento[data-status="NAO_INICIADO"] { background: var(--color-text-muted); }
-.barra-preenchimento[data-status="EM_ANDAMENTO"] { background: var(--color-info); }
-.barra-preenchimento[data-status="EM_RISCO"] { background: var(--color-warning); }
-.barra-preenchimento[data-status="CONCLUIDO"] { background: var(--color-success); }
+.barra-preenchimento[data-status="NAO_INICIADO"], .marcador[data-status="NAO_INICIADO"] { background: var(--color-text-muted); }
+.barra-preenchimento[data-status="EM_ANDAMENTO"], .marcador[data-status="EM_ANDAMENTO"] { background: var(--color-info); }
+.barra-preenchimento[data-status="EM_RISCO"], .marcador[data-status="EM_RISCO"] { background: var(--color-warning); }
+.barra-preenchimento[data-status="CONCLUIDO"], .marcador[data-status="CONCLUIDO"] { background: var(--color-success); }
 .barra-preenchimento[data-vencida] { background: var(--color-danger); }
 :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 [disabled] { opacity: var(--opacity-disabled); cursor: not-allowed; }
@@ -386,6 +426,115 @@ a { color: inherit; }
 .kpi-numero[data-tom="info"] { color: var(--color-info); }
 .kpi-numero[data-tom="danger"] { color: var(--color-danger); }
 
+/* T04 */
+.filtros-acoes { gap: var(--space-3); }
+.filtros-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.quadro-barra { flex-wrap: wrap; }
+.agrupar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.quadro { overflow-x: auto; padding-bottom: var(--space-2); }
+.quadro-conteudo {
+  display: flex; flex-direction: column; gap: var(--space-5);
+  min-width: calc(var(--kanban-column-width) * var(--colunas) + var(--space-2) * (var(--colunas) - 1));
+}
+.colunas { display: grid; grid-template-columns: repeat(var(--colunas), minmax(var(--kanban-column-width), 1fr)); gap: var(--space-2); }
+.coluna-kanban {
+  display: flex; flex-direction: column; min-width: 0;
+  max-height: calc(100vh - var(--space-7) * 5); overflow-y: auto;
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg);
+  transition: background-color var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard);
+}
+.coluna-cabecalho {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3); border-bottom: 1px solid var(--color-border); background: inherit;
+  font-size: var(--font-size-sm); line-height: var(--line-height-sm); font-weight: var(--font-weight-semibold);
+}
+.marcador { width: var(--space-2); height: var(--space-2); flex: none; border-radius: var(--radius-full); }
+.coluna-cartoes { display: flex; flex-direction: column; gap: var(--space-2); flex: 1; min-height: calc(var(--space-7) * 2); padding: var(--space-2); }
+.coluna-vazia { padding: var(--space-4) var(--space-2); text-align: center; font-size: var(--font-size-xs); line-height: var(--line-height-xs); color: var(--color-text-muted); }
+.quadro-conteudo[data-arrastando] .coluna-kanban[data-destino] { border-style: dashed; border-color: var(--color-border-strong); background: var(--color-surface-muted); }
+.quadro-conteudo[data-arrastando] .coluna-kanban[data-sobre] { border-style: solid; border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+
+.cartao {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-surface); box-shadow: var(--shadow-card); cursor: pointer;
+  transition: box-shadow var(--duration-fast) var(--easing-standard), border-color var(--duration-fast) var(--easing-standard), opacity var(--duration-fast) var(--easing-standard);
+}
+.cartao[draggable="true"] { cursor: grab; }
+.cartao:hover { border-color: var(--color-border-strong); box-shadow: var(--shadow-card-hover); }
+.cartao[data-origem] { opacity: var(--opacity-disabled); }
+.cartao-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); }
+.cartao-titulo {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  font-size: var(--font-size-sm); line-height: var(--line-height-sm); font-weight: var(--font-weight-medium);
+}
+.cartao-pai { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.cartao-rodape { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.cartao .progresso { min-width: 0; }
+.cadeado { display: inline-flex; flex: none; color: var(--color-text-muted); }
+.iniciais { display: inline-flex; }
+
+.raia { display: flex; flex-direction: column; gap: var(--space-3); }
+.raia + .raia { padding-top: var(--space-5); border-top: 1px solid var(--color-border); }
+.raia-cabecalho { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.raia-titulo { font-size: var(--font-size-md); line-height: var(--line-height-md); }
+.raia-titulo .link-botao { font-weight: var(--font-weight-semibold); }
+
+/* T04 Calendário */
+.calendario-barra { flex-wrap: wrap; }
+.calendario-nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.btn-icone { width: var(--control-height); padding: 0; font-size: var(--font-size-md); }
+.calendario-periodo { margin-left: var(--space-2); }
+.calendario-periodo:focus { outline: 0; } /* não interativo: recebe foco por script depois do "+N mais" */
+.calendario-grade { border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
+.calendario-grade.trocando { animation: surgir var(--duration-fast) var(--easing-standard); }
+.dias-cabecalho, .dias-fundo, .faixas { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.dias-cabecalho { border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.dia-titulo {
+  display: flex; align-items: center; gap: var(--space-1); padding: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  font-size: var(--font-size-xs); line-height: var(--line-height-sm); font-weight: var(--font-weight-medium); color: var(--color-text-muted);
+}
+.dias-fundo { position: absolute; inset: 0; }
+.dia { padding: var(--space-1) var(--space-2); border-right: 1px solid var(--color-border); font-size: var(--font-size-xs); line-height: var(--line-height-sm); }
+.dia:last-child, .dia-titulo:last-child { border-right: 0; }
+.dia[data-fim-de-semana], .dia-titulo[data-fim-de-semana] { background: var(--color-bg); }
+.dia[data-fora] { background: var(--color-surface-muted); color: var(--color-text-muted); }
+.dia-numero { display: inline-grid; place-items: center; min-width: var(--line-height-sm); padding: 0 var(--space-1); border-radius: var(--radius-full); font-weight: var(--font-weight-medium); }
+[data-hoje] .dia-numero { background: var(--color-primary); color: var(--color-on-primary); }
+.hoje-legenda { margin-left: var(--space-1); font-weight: var(--font-weight-semibold); color: var(--color-text); }
+.semana-mes { position: relative; min-height: var(--calendar-day-min-height); border-bottom: 1px solid var(--color-border); }
+.semana-mes:last-child { border-bottom: 0; }
+.faixas { position: relative; row-gap: var(--space-1); padding: calc(var(--line-height-sm) + var(--space-2)) 0 var(--space-2); }
+.faixa {
+  display: flex; align-items: center; gap: var(--space-2); min-width: 0; height: var(--calendar-bar-height);
+  margin: 0 var(--space-1); padding: 0 var(--space-2);
+  border: 0; border-left: var(--space-1) solid currentColor; border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs); line-height: var(--line-height-xs); text-align: left; cursor: pointer; overflow: hidden;
+  transition: box-shadow var(--duration-fast) var(--easing-standard);
+}
+.faixa:hover { box-shadow: var(--shadow-card-hover); }
+.faixa .badge { flex: none; }
+.faixa .badge:not([data-prioridade="PAUTA_SEMANA"]) { background: var(--color-surface); } /* contorno sobre a faixa neutra */
+.faixa-desc { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--font-weight-medium); }
+.faixa-status { flex: none; font-weight: var(--font-weight-medium); white-space: nowrap; }
+.faixa-mais { margin: 0 var(--space-2); justify-self: start; }
+.semana-quadro { max-height: calc(100vh - var(--space-7) * 5); overflow-y: auto; }
+.semana-quadro .dias-cabecalho { position: sticky; top: 0; z-index: 1; }
+.semana-corpo { position: relative; min-height: calc(var(--calendar-day-min-height) * 2); }
+.semana-corpo .faixas { row-gap: var(--space-2); padding-top: var(--space-2); }
+.faixa-semana { flex-direction: column; align-items: stretch; gap: var(--space-1); height: auto; min-height: var(--calendar-bar-height-week); padding: var(--space-2) var(--space-3); }
+.faixa-linha { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); min-width: 0; }
+.faixa-titulo {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  font-size: var(--font-size-sm); line-height: var(--line-height-sm); font-weight: var(--font-weight-medium);
+}
+.faixa .cartao-pai { display: block; }
+.faixa .progresso { flex: 1; min-width: 0; }
+.faixa-continua { flex: none; font-size: var(--font-size-sm); }
+.faixa-linha .badges { flex: 1; }
+
 /* ===== Movimento (só funcional) ===== */
 @keyframes entrar-rota { from { opacity: 0; transform: translateY(var(--space-2)); } }
 @keyframes crescer { from { transform: scaleX(0); } }
@@ -395,6 +544,9 @@ a { color: inherit; }
 @keyframes fundo-entrar { from { opacity: 0; } }
 @keyframes fundo-sair { to { opacity: 0; } }
 @keyframes pulso { 50% { opacity: var(--opacity-disabled); } }
+@keyframes gaveta-entrar { from { transform: translateX(100%); } }
+@keyframes gaveta-sair { to { transform: translateX(100%); } }
+@keyframes destacar { from { border-color: var(--color-primary); background: var(--color-surface-muted); } }
 .conteudo.entrando { animation: entrar-rota var(--duration-base) var(--easing-standard); }
 .conteudo.entrando .barra-preenchimento { animation: crescer var(--duration-slow) var(--easing-standard); }
 .tabela tr.surgindo { animation: surgir var(--duration-base) var(--easing-standard); }
@@ -402,6 +554,11 @@ a { color: inherit; }
 .dialogo[open]::backdrop { animation: fundo-entrar var(--duration-base) var(--easing-standard); }
 .dialogo.fechando { animation: dialogo-sair var(--duration-fast) var(--easing-standard) forwards; }
 .dialogo.fechando::backdrop { animation: fundo-sair var(--duration-fast) var(--easing-standard) forwards; }
+.gaveta[open] { animation: gaveta-entrar var(--duration-base) var(--easing-standard); }
+.gaveta[open]::backdrop { animation: fundo-entrar var(--duration-base) var(--easing-standard); }
+.gaveta.fechando { animation: gaveta-sair var(--duration-fast) var(--easing-standard) forwards; }
+.gaveta.fechando::backdrop { animation: fundo-sair var(--duration-fast) var(--easing-standard) forwards; }
+.cartao.movido { animation: destacar calc(var(--duration-slow) * 3) var(--easing-standard); }
 .skeleton { animation: pulso calc(var(--duration-slow) * 4) var(--easing-standard) infinite; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::backdrop { animation: none !important; transition: none !important; }
@@ -421,7 +578,11 @@ a { color: inherit; }
     </div>
   </div>
 </dialog>
-<div class="toast" id="toast" role="status"></div>
+<dialog class="gaveta" id="gaveta" aria-labelledby="gaveta-titulo">
+  <div class="gaveta-corpo" id="gaveta-corpo"></div>
+</dialog>
+<div class="toast" id="toast" role="status"><span id="toast-texto"></span><button type="button" class="btn btn-terciario toast-acao" data-acao="desfazer" hidden></button></div>
+<div class="sr-only" id="anuncio" aria-live="polite"></div>
 
 <script>
 'use strict';
@@ -449,6 +610,8 @@ const ROTULO_VENCIDA = 'Vencida';
 const ROTULO_VENCIDAS = 'Vencidas';
 const ROTULO_VENCEM_ESTE_MES = 'Vencem neste mês';
 const MESES_ABREV = Object.freeze(['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']);
+const MESES_NOME = Object.freeze(['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']);
+const DIAS_SEMANA_ABREV = Object.freeze(['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom']); // a semana começa na segunda
 
 // Filtros do painel: recurso de interface, não regra de domínio (pendência B17)
 const FILTRO_STATUS_PAINEL = Object.freeze({ TODOS: '', VENCIDAS: 'VENCIDAS' }); // VENCIDAS: derivado da Lei 9, não é status
@@ -457,7 +620,27 @@ const ROTULOS_FILTRO = Object.freeze({
   UNIDADE: 'Unidade', MES: 'Mês esperado', PONTO_FOCAL: 'Ponto focal', STATUS: 'Status',
   TODAS_UNIDADES: 'Todas as unidades', TODOS_MESES: 'Todos os meses', TODOS_PONTOS_FOCAIS: 'Todos os pontos focais',
   SEM_PONTO_FOCAL: 'Sem ponto focal', TODOS_STATUS: 'Todos os status', TODOS_TIPOS: 'Todos os tipos', TIPO: 'Tipo de ação',
+  BUSCA: 'Buscar ação', VISAO: 'Visão', AGRUPAR: 'Agrupar por',
 });
+
+// T04: visão e agrupamento são recursos de interface, não regra de domínio
+const VISAO_ACOES = Object.freeze({ LISTA: 'LISTA', KANBAN: 'KANBAN', CALENDARIO: 'CALENDARIO' });
+const ROTULOS_VISAO = Object.freeze({ LISTA: 'Lista', KANBAN: 'Kanban', CALENDARIO: 'Calendário' });
+const ICONES_VISAO = Object.freeze({ LISTA: 'lista', KANBAN: 'kanban', CALENDARIO: 'calendario' });
+const QUERY_VISAO = Object.freeze({ PARAMETRO: 'visao', KANBAN: 'kanban', CALENDARIO: 'calendario' });
+// Calendário: faixas de dia inteiro derivadas só de mesConclusaoEstimado (sem data nova no domínio)
+const MODO_CALENDARIO = Object.freeze({ MES: 'MES', SEMANA: 'SEMANA' });
+const ROTULOS_MODO_CALENDARIO = Object.freeze({ MES: 'Mês', SEMANA: 'Semana' });
+const ROTULOS_CALENDARIO = Object.freeze({
+  ANTERIOR: '‹', PROXIMO: '›', HOJE: 'Hoje', CONTINUA_ANTES: '◂', CONTINUA_DEPOIS: '▸', MODO: 'Modo do calendário',
+  NAVEGAR: Object.freeze({
+    MES: Object.freeze({ ANTERIOR: 'Mês anterior', PROXIMO: 'Próximo mês' }),
+    SEMANA: Object.freeze({ ANTERIOR: 'Semana anterior', PROXIMO: 'Próxima semana' }),
+  }),
+});
+const AGRUPAMENTO_KANBAN = Object.freeze({ NENHUM: 'NENHUM', ESTRATEGICA: 'ESTRATEGICA' });
+const ROTULOS_AGRUPAMENTO = Object.freeze({ NENHUM: 'Nenhum', ESTRATEGICA: 'Estratégica' });
+const PREFIXO_PAI = '↳';
 
 const KPIS = Object.freeze([
   { chave: 'ESCOPO', rotulo: 'No escopo', icone: 'acoes', tom: 'neutro', status: FILTRO_STATUS_PAINEL.TODOS },
@@ -470,9 +653,10 @@ const ESTADO_TELA = Object.freeze({ NORMAL: 'NORMAL', CARREGANDO: 'CARREGANDO', 
 const ROTULOS_ESTADO_TELA = Object.freeze({ NORMAL: 'Normal', CARREGANDO: 'Carregando', VAZIO: 'Vazio', ERRO: 'Erro', SEM_PERMISSAO: 'Sem permissão', NAO_ENCONTRADO: 'Não encontrado' });
 
 const ROTAS = Object.freeze({
-  LOGIN: '#/login', PAINEL: '#/painel', ACOES: '#/acoes',
+  LOGIN: '#/login', PAINEL: '#/painel', ACOES: '#/acoes', ACOES_KANBAN: '#/acoes?visao=kanban', ACOES_CALENDARIO: '#/acoes?visao=calendario',
   REUNIOES: '#/reunioes', HISTORICO_REUNIOES: '#/historico-reunioes', USUARIOS: '#/usuarios',
 });
+const ROTA_VISAO = Object.freeze({ LISTA: ROTAS.ACOES, KANBAN: ROTAS.ACOES_KANBAN, CALENDARIO: ROTAS.ACOES_CALENDARIO });
 
 const OPERACAO = Object.freeze({
   VER: 'VER', EDITAR: 'EDITAR', EXCLUIR: 'EXCLUIR', MUDAR_STATUS: 'MUDAR_STATUS',
@@ -480,9 +664,14 @@ const OPERACAO = Object.freeze({
   VER_USUARIOS: 'VER_USUARIOS',
 });
 
-const CONFIG = Object.freeze({ DURACAO_TOAST_MS: 4000 });
+const CONFIG = Object.freeze({ DURACAO_TOAST_MS: 4000, DURACAO_DESFAZER_MS: 8000, DEBOUNCE_BUSCA_MS: 200, MAX_INICIAIS_CARTAO: 3, MS_POR_SEGUNDO: 1000, FATOR_SALVAGUARDA_ANIMACAO: 2, MAX_FAIXAS_SEMANA_MES: 3, DIAS_POR_SEMANA: 7 });
 // atributos que identificam um controle para devolver o foco depois do render
-const ATRIBUTOS_FOCO = Object.freeze(['data-filtro', 'data-kpi', 'data-status-acao', 'data-acao', 'data-id']);
+const ATRIBUTOS_FOCO = Object.freeze(['data-filtro', 'data-kpi', 'data-status-acao', 'data-acao', 'data-id', 'data-visao', 'data-agrupamento', 'data-cartao', 'data-faixa', 'data-passo', 'data-modo', 'data-semana']);
+
+const FILTROS_INICIAIS = Object.freeze({
+  filtrosPainel: Object.freeze({ unidadeId: '', mes: '', pontoFocal: '', status: FILTRO_STATUS_PAINEL.TODOS }),
+  filtrosAcoes: Object.freeze({ unidadeId: '', tipo: '', status: '', busca: '' }),
+});
 
 const MENSAGENS = Object.freeze({
   EM_BREVE: 'Disponível numa próxima versão do protótipo.',
@@ -512,6 +701,28 @@ const MENSAGENS = Object.freeze({
   LOGIN_DEMO: 'Protótipo: qualquer email e senha entram no cockpit.',
   SEM_FILTROS: 'Nenhum filtro ativo',
   FILTROS_ATIVOS: (n) => (n === 1 ? '1 filtro ativo' : `${n} filtros ativos`),
+  NENHUMA_ACAO_COLUNA: 'Nenhuma ação',
+  DICA_KANBAN: 'Arraste os cartões ou use Alt+← e Alt+→',
+  AGRUPAMENTO_INDISPONIVEL: 'Indisponível com o tipo Estratégica: os cartões já são as estratégicas.',
+  STATUS_BLOQUEADO: 'Somente leitura: seu papel não permite mudar o status desta ação.',
+  ACAO_MOVIDA: (descricao, status) => `Ação "${descricao}" movida para ${status}.`,
+  MUDANCA_DESFEITA: 'Mudança de status desfeita.',
+  ACAO_NAO_ENCONTRADA: 'Não encontramos esta ação. Atualize a tela e tente de novo.',
+  DESFAZER: 'Desfazer',
+  FECHAR: 'Fechar',
+  ABRIR_DETALHE: 'Abrir detalhe completo',
+  RESPONSAVEIS: (nomes) => `Responsáveis: ${nomes}`,
+  SUB_ACOES: (n) => (n === 1 ? '1 sub-ação' : `${n} sub-ações`),
+  NENHUMA_ACAO_PERIODO: 'Nenhuma ação neste período.',
+  ACOES_NO_PERIODO: Object.freeze({
+    MES: (n) => (n === 1 ? '1 ação neste mês' : `${n} ações neste mês`),
+    SEMANA: (n) => (n === 1 ? '1 ação nesta semana' : `${n} ações nesta semana`),
+  }),
+  MAIS_FAIXAS: (n) => `+${n} mais`,
+  VER_SEMANA: (n, periodo) => `Ver mais ${n} na semana de ${periodo}`,
+  FAIXA: (descricao, tipo, status, mes, vencida) => `${descricao}. ${tipo}. ${status}. Conclusão em ${mes}${vencida ? `. ${ROTULO_VENCIDA}` : ''}`,
+  CONTINUA_ANTES: 'Começa antes desta semana',
+  CONTINUA_DEPOIS: 'Continua depois desta semana',
 });
 
 const ICONES = Object.freeze({
@@ -530,6 +741,9 @@ const ICONES = Object.freeze({
   direita: '<path d="m9 6 6 6-6 6"/>',
   mais: '<path d="M12 5v14M5 12h14"/>',
   sair: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+  fechar: '<path d="M18 6 6 18M6 6l12 12"/>',
+  lista: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  kanban: '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/>',
 });
 
 const MENU = Object.freeze([
@@ -582,8 +796,15 @@ const estado = {
   rotaRenderizada: null,
   expandidos: new Set(acoes.filter((a) => a.tipo !== S).map((a) => a.id)),
   recemExpandido: null,
-  filtrosPainel: { unidadeId: '', mes: '', pontoFocal: '', status: '' },
-  filtrosAcoes: { unidadeId: '', tipo: '', status: '' },
+  filtrosPainel: { ...FILTROS_INICIAIS.filtrosPainel },
+  filtrosAcoes: { ...FILTROS_INICIAIS.filtrosAcoes },
+  agrupamentoKanban: AGRUPAMENTO_KANBAN.NENHUM,
+  calendario: { modo: MODO_CALENDARIO.MES, referencia: HOJE },
+  calendarioTrocado: false, // período ou modo acabou de mudar (fade da grade)
+  recemMovido: null, // id do cartão que acabou de mudar de status
+  ultimaMudanca: null, // { id, de, para } enquanto o "Desfazer" estiver disponível
+  raiasRecolhidas: new Set(),
+  gavetaAcaoId: null,
 };
 
 const usuarioAtual = () => USUARIOS.find((u) => u.id === estado.usuarioId);
@@ -592,6 +813,11 @@ const unidadePorId = (id) => UNIDADES.find((u) => u.id === id);
 const acaoPorId = (id) => acoes.find((a) => a.id === id);
 const porMesEId = (a, b) => a.mesConclusaoEstimado.localeCompare(b.mesConclusaoEstimado) || a.id - b.id;
 const filhasDe = (id) => acoes.filter((a) => a.acaoPaiId === id).sort(porMesEId);
+function estrategicaDe(a) {
+  let atual = a;
+  while (atual.acaoPaiId !== null) atual = acaoPorId(atual.acaoPaiId);
+  return atual;
+}
 
 function ultimoDiaDoMes(dataIso) {
   const [ano, mes] = dataIso.split('-').map(Number);
@@ -599,6 +825,22 @@ function ultimoDiaDoMes(dataIso) {
   return `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 const FIM_DO_MES_CORRENTE = ultimoDiaDoMes(HOJE);
+
+// datas do calendário em UTC sobre 'YYYY-MM-DD' (sem fuso no meio)
+const TAMANHO_DATA_ISO = 'YYYY-MM-DD'.length;
+const TAMANHO_MES_ISO = 'YYYY-MM'.length;
+const paraData = (iso) => new Date(`${iso}T00:00:00Z`);
+const paraIso = (data) => data.toISOString().slice(0, TAMANHO_DATA_ISO);
+const inicioDoMes = (iso) => `${iso.slice(0, TAMANHO_MES_ISO)}-01`;
+function somarDias(iso, dias) { const d = paraData(iso); d.setUTCDate(d.getUTCDate() + dias); return paraIso(d); }
+function somarMeses(iso, meses) { const d = paraData(inicioDoMes(iso)); d.setUTCMonth(d.getUTCMonth() + meses); return paraIso(d); }
+// getUTCDay: 0 = domingo; aqui 0 = segunda
+const indiceDiaSemana = (iso) => (paraData(iso).getUTCDay() + CONFIG.DIAS_POR_SEMANA - 1) % CONFIG.DIAS_POR_SEMANA;
+const segundaDe = (iso) => somarDias(iso, -indiceDiaSemana(iso));
+const diasDaSemana = (segunda) => Array.from({ length: CONFIG.DIAS_POR_SEMANA }, (_, i) => somarDias(segunda, i));
+const ehFimDeSemana = (iso) => indiceDiaSemana(iso) >= CONFIG.DIAS_POR_SEMANA - 2; // sábado e domingo
+// a ação ocupa o mês inteiro de conclusão: do dia 1 ao último dia
+const intervaloDaAcao = (a) => ({ inicio: inicioDoMes(a.mesConclusaoEstimado), fim: ultimoDiaDoMes(a.mesConclusaoEstimado) });
 
 // Lei 9
 const estaVencida = (a) => a.mesConclusaoEstimado < HOJE && a.status !== ST.CONCLUIDO;
@@ -653,6 +895,8 @@ const icone = (nome, classe = 'icone') => `<svg class="${classe}" viewBox="0 0 2
 const formatarMes = (iso) => { const [ano, mes] = iso.split('-'); return `${MESES_ABREV[Number(mes) - 1]}/${ano}`; };
 const formatarPercentual = (v) => `${Math.round(v * 100)}%`;
 const iniciais = (nome) => nome.split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+// busca sem diferenciar maiúsculas nem acentos
+const normalizar = (t) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
 const badgeStatus = (s) => `<span class="badge" data-status="${s}">${esc(ROTULOS_STATUS_ACAO[s])}</span>`;
 const badgePrioridade = (p) => `<span class="badge" data-prioridade="${p}">${esc(ROTULOS_PRIORIDADE[p])}</span>`;
@@ -679,9 +923,9 @@ function seletorStatus(a) {
 }
 
 const larguraBarra = (valor, maximo) => (maximo ? formatarPercentual(valor / maximo) : '0%');
-const barra = (largura, atributos = '', classe = '') => `<div class="barra"><div class="barra-preenchimento ${classe}" ${atributos} style="width:${largura}"></div></div>`;
+const barra = (largura, atributos = '', classe = '') => `<span class="barra"><span class="barra-preenchimento ${classe}" ${atributos} style="width:${largura}"></span></span>`;
 function barraProgresso(valor) {
-  return `<div class="progresso">${barra(formatarPercentual(valor), 'data-progresso')}<span class="legenda num">${formatarPercentual(valor)}</span></div>`;
+  return `<span class="progresso">${barra(formatarPercentual(valor), 'data-progresso')}<span class="legenda num">${formatarPercentual(valor)}</span></span>`;
 }
 
 function seletor(filtro, rotulo, valorAtual, opcoes, rotuloTodos) {
@@ -860,7 +1104,7 @@ function renderPainel() {
         ${seletor('filtrosPainel.status', ROTULOS_FILTRO.STATUS, f.status, opcoes.status, ROTULOS_FILTRO.TODOS_STATUS)}
       </div>
       <div class="filtros-rodape"><span class="legenda" aria-live="polite">${esc(ativos ? MENSAGENS.FILTROS_ATIVOS(ativos) : MENSAGENS.SEM_FILTROS)}</span>
-        <button type="button" class="btn btn-terciario" data-acao="limpar-filtros" ${ativos ? '' : 'disabled'}>Limpar filtros</button></div>
+        <button type="button" class="btn btn-terciario" data-acao="limpar-filtros" data-grupo="filtrosPainel" ${ativos ? '' : 'disabled'}>Limpar filtros</button></div>
     </section>
     <div class="grid-4">${kpis}</div>
     ${cardFiltradas}
@@ -897,11 +1141,258 @@ function renderPainel() {
     </div>`;
 }
 
-/* --- T04 Lista e árvore de ações --- */
-function renderAcoes() {
+/* --- T04 Lista, árvore e Kanban de ações --- */
+function visaoAtual() {
+  const valor = lerQuery().get(QUERY_VISAO.PARAMETRO);
+  if (valor === QUERY_VISAO.KANBAN) return VISAO_ACOES.KANBAN;
+  if (valor === QUERY_VISAO.CALENDARIO) return VISAO_ACOES.CALENDARIO;
+  return VISAO_ACOES.LISTA;
+}
+
+// no Kanban as colunas já são os status: o filtro Status não se aplica
+function confereFiltrosAcoes(a, visao) {
+  const f = estado.filtrosAcoes;
+  const termo = normalizar(f.busca.trim());
+  return (!f.unidadeId || a.unidadeId === Number(f.unidadeId))
+    && (!f.tipo || a.tipo === f.tipo)
+    && (visao === VISAO_ACOES.KANBAN || !f.status || a.status === f.status)
+    && (!termo || normalizar(a.descricao).includes(termo));
+}
+function filtrosAtivosAcoes(visao) {
+  const f = estado.filtrosAcoes;
+  return [f.unidadeId, f.tipo, visao !== VISAO_ACOES.KANBAN ? f.status : '', f.busca.trim()].filter(Boolean).length;
+}
+
+function renderFiltrosAcoes(visao) {
+  const f = estado.filtrosAcoes;
+  const ativos = filtrosAtivosAcoes(visao);
+  const alternador = Object.values(VISAO_ACOES).map((v) => `<button type="button" class="aba" data-acao="visao" data-visao="${v}" aria-pressed="${v === visao}">${icone(ICONES_VISAO[v])}${esc(ROTULOS_VISAO[v])}</button>`).join('');
+  return `<section class="card filtros-acoes" aria-label="Filtros de ações">
+      <div class="filtros-topo">
+        <div class="abas" role="group" aria-label="${esc(ROTULOS_FILTRO.VISAO)}">${alternador}</div>
+        <label class="busca" ${f.busca.trim() ? 'data-ativo' : ''}><span class="sr-only">${esc(ROTULOS_FILTRO.BUSCA)}</span>${icone('busca')}<input class="input" type="search" data-filtro="filtrosAcoes.busca" value="${esc(f.busca)}" placeholder="${esc(ROTULOS_FILTRO.BUSCA)}" autocomplete="off"></label>
+      </div>
+      <div class="filtros-campos">
+        ${seletor('filtrosAcoes.unidadeId', ROTULOS_FILTRO.UNIDADE, f.unidadeId, opcoesUnidades(), ROTULOS_FILTRO.TODAS_UNIDADES)}
+        ${seletor('filtrosAcoes.tipo', ROTULOS_FILTRO.TIPO, f.tipo, Object.values(TIPO_ACAO).map((t) => [t, ROTULOS_TIPO[t]]), ROTULOS_FILTRO.TODOS_TIPOS)}
+        ${visao !== VISAO_ACOES.KANBAN ? seletor('filtrosAcoes.status', ROTULOS_FILTRO.STATUS, f.status, Object.values(STATUS_ACAO).map((s) => [s, ROTULOS_STATUS_ACAO[s]]), ROTULOS_FILTRO.TODOS_STATUS) : ''}
+      </div>
+      <div class="filtros-rodape"><span class="legenda" aria-live="polite">${esc(ativos ? MENSAGENS.FILTROS_ATIVOS(ativos) : MENSAGENS.SEM_FILTROS)}</span>
+        <button type="button" class="btn btn-terciario" data-acao="limpar-filtros" data-grupo="filtrosAcoes" ${ativos ? '' : 'disabled'}>Limpar filtros</button></div>
+    </section>`;
+}
+
+function iniciaisResponsaveis(lista) {
+  const nomes = lista.map((r) => r.username).join(', ');
+  const mostrados = lista.slice(0, CONFIG.MAX_INICIAIS_CARTAO);
+  const extra = lista.length - mostrados.length;
+  return `<span class="iniciais" role="img" title="${esc(nomes)}" aria-label="${esc(MENSAGENS.RESPONSAVEIS(nomes))}">${mostrados.map((r) => `<span class="avatar avatar-sm" aria-hidden="true">${esc(iniciais(r.username))}</span>`).join('')}${extra > 0 ? `<span class="avatar avatar-sm" aria-hidden="true">+${extra}</span>` : ''}</span>`;
+}
+
+function cartaoKanban(a, raiaId, nivelTitulo) {
+  const u = usuarioAtual();
+  const podeMover = pode(OPERACAO.MUDAR_STATUS, a);
+  const pai = a.acaoPaiId ? acaoPorId(a.acaoPaiId) : null;
+  const cadeado = podeMover ? '' : `<span class="cadeado" title="${esc(MENSAGENS.STATUS_BLOQUEADO)}">${icone('cadeado')}<span class="sr-only">${esc(MENSAGENS.STATUS_BLOQUEADO)}</span></span>`;
+  const complemento = a.tipo === E ? barraProgresso(progresso(a)) // Lei 7
+    : a.tipo === O ? `<span class="legenda">${esc(MENSAGENS.SUB_ACOES(filhasDe(a.id).filter((s) => podeVer(s, u)).length))}</span>` : '';
+  return `<article class="cartao ${estado.recemMovido === a.id ? 'movido' : ''}" tabindex="0" draggable="${podeMover}" data-acao="gaveta-abrir" data-id="${a.id}" data-cartao="${a.id}" data-raia="${raiaId}" aria-labelledby="cartao-${a.id}" ${podeMover ? 'aria-describedby="dica-kanban"' : ''}>
+      <div class="cartao-topo"><h${nivelTitulo} class="cartao-titulo" id="cartao-${a.id}" title="${esc(a.descricao)}">${esc(a.descricao)}</h${nivelTitulo}>${cadeado}</div>
+      ${pai && podeVer(pai, u) ? `<p class="legenda cartao-pai" title="${esc(pai.descricao)}">${PREFIXO_PAI} ${esc(pai.descricao)}</p>` : ''}
+      <div class="badges">${badgeTipo(a.tipo)}${badgePrioridade(a.prioridade)}</div>
+      <div class="badges"><span class="legenda num">${formatarMes(a.mesConclusaoEstimado)}</span>${badgeVencida(a)}</div>
+      ${a.tipo === E ? complemento : ''}
+      <div class="cartao-rodape">${iniciaisResponsaveis(a.responsaveis)}${a.tipo === E ? '' : complemento}</div>
+    </article>`;
+}
+
+// com raias, a coluna fica um nível abaixo do título da raia
+function colunasKanban(cartoes, raiaId) {
+  const nivel = raiaId ? 4 : 3;
+  return `<div class="colunas">${Object.values(STATUS_ACAO).map((s) => {
+    const daColuna = cartoes.filter((a) => a.status === s);
+    const titulo = `coluna-${raiaId || 'todas'}-${s}`;
+    return `<section class="coluna-kanban" data-coluna="${s}" data-raia="${raiaId}" aria-labelledby="${titulo}">
+        <h${nivel} class="coluna-cabecalho" id="${titulo}"><span class="marcador" data-status="${s}" aria-hidden="true"></span>${esc(ROTULOS_STATUS_ACAO[s])} ${badgeContagem(daColuna.length)}</h${nivel}>
+        <div class="coluna-cartoes">${daColuna.length ? daColuna.map((a) => cartaoKanban(a, raiaId, nivel + 1)).join('') : `<p class="coluna-vazia">${esc(MENSAGENS.NENHUMA_ACAO_COLUNA)}</p>`}</div>
+      </section>`;
+  }).join('')}</div>`;
+}
+
+function raiaKanban({ estrategica: e, cartoes }) {
+  const recolhida = estado.raiasRecolhidas.has(e.id);
+  return `<section class="raia" aria-labelledby="raia-${e.id}">
+      <div class="raia-cabecalho">
+        <button type="button" class="btn-expandir" data-acao="recolher-raia" data-id="${e.id}" aria-expanded="${!recolhida}" aria-label="${recolhida ? 'Expandir' : 'Recolher'} ${esc(e.descricao)}">${icone(recolhida ? 'direita' : 'abaixo')}</button>
+        <h3 class="raia-titulo" id="raia-${e.id}"><button type="button" class="link-botao" data-acao="gaveta-abrir" data-id="${e.id}">${esc(e.descricao)}</button></h3>
+        ${badgeContagem(cartoes.length)}
+        <div class="badges">${seletorStatus(e)}${badgeVencida(e)}</div>
+        ${barraProgresso(progresso(e))}
+      </div>
+      ${recolhida ? '' : colunasKanban(cartoes, e.id)}
+    </section>`;
+}
+
+function renderKanban(acaoVazio) {
   const u = usuarioAtual();
   const f = estado.filtrosAcoes;
-  const confere = (a) => (!f.unidadeId || a.unidadeId === Number(f.unidadeId)) && (!f.tipo || a.tipo === f.tipo) && (!f.status || a.status === f.status);
+  const tipoEstrategica = f.tipo === E;
+  if (tipoEstrategica) estado.agrupamentoKanban = AGRUPAMENTO_KANBAN.NENHUM;
+  const agrupando = estado.agrupamentoKanban === AGRUPAMENTO_KANBAN.ESTRATEGICA;
+  // com raias, as estratégicas viram cabeçalho e não aparecem como cartões
+  const cartoes = acoes.filter((a) => podeVer(a, u) && confereFiltrosAcoes(a, VISAO_ACOES.KANBAN) && !(agrupando && a.tipo === E)).sort(porMesEId);
+  const corpo = agrupando
+    ? acoes.filter((a) => a.tipo === E && podeVer(a, u)).sort(porMesEId)
+      .map((e) => ({ estrategica: e, cartoes: cartoes.filter((c) => estrategicaDe(c).id === e.id) }))
+      .filter((r) => r.cartoes.length).map(raiaKanban).join('')
+    : colunasKanban(cartoes, '');
+
+  const opcoesAgrupar = Object.values(AGRUPAMENTO_KANBAN).map((g) => `<button type="button" class="aba" data-acao="agrupar" data-agrupamento="${g}" aria-pressed="${g === estado.agrupamentoKanban}" ${tipoEstrategica ? 'disabled aria-describedby="dica-agrupar"' : ''}>${esc(ROTULOS_AGRUPAMENTO[g])}</button>`).join('');
+  return `<section class="card">
+      <div class="card-cabecalho quadro-barra">
+        <h2 class="card-titulo">Ações ${badgeContagem(cartoes.length)}</h2>
+        <div class="agrupar"><span class="rotulo" id="rotulo-agrupar">${esc(ROTULOS_FILTRO.AGRUPAR)}</span>
+          <div class="abas" role="group" aria-labelledby="rotulo-agrupar">${opcoesAgrupar}</div>
+          ${tipoEstrategica ? `<span class="legenda" id="dica-agrupar">${esc(MENSAGENS.AGRUPAMENTO_INDISPONIVEL)}</span>` : ''}</div>
+      </div>
+      <p class="legenda" id="dica-kanban">${esc(MENSAGENS.DICA_KANBAN)}</p>
+      ${cartoes.length
+        ? `<div class="quadro" style="--colunas:${Object.values(STATUS_ACAO).length}"><div class="quadro-conteudo">${corpo}</div></div>`
+        : estadoVazio(MENSAGENS.NENHUMA_ACAO, acaoVazio)}
+    </section>`;
+}
+
+/* --- T04 Calendário (mês e semana; sem arraste: mudar o mês seria editar a ação) --- */
+// E, depois cada O seguida das suas S; grupos por estratégica (porMesEId); só as ações da lista
+function ordenarHierarquia(lista) {
+  const ids = new Set(lista.map((a) => a.id));
+  const resultado = [];
+  const percorrer = (a) => { if (ids.has(a.id)) resultado.push(a); filhasDe(a.id).forEach(percorrer); };
+  [...new Set(lista.map(estrategicaDe))].sort(porMesEId).forEach(percorrer);
+  return resultado;
+}
+
+const formatarMesExtenso = (iso) => { const [ano, mes] = iso.split('-'); return `${MESES_NOME[Number(mes) - 1]} de ${ano}`; };
+const diaDoMes = (iso) => Number(iso.split('-')[2]);
+function formatarSemana(segunda) {
+  const domingo = somarDias(segunda, CONFIG.DIAS_POR_SEMANA - 1);
+  const [a1, m1] = segunda.split('-').map(Number);
+  const [a2, m2] = domingo.split('-').map(Number);
+  const fim = `${diaDoMes(domingo)} ${MESES_ABREV[m2 - 1]} ${a2}`;
+  if (a1 !== a2) return `${diaDoMes(segunda)} ${MESES_ABREV[m1 - 1]} ${a1} – ${fim}`;
+  if (m1 !== m2) return `${diaDoMes(segunda)} ${MESES_ABREV[m1 - 1]} – ${fim}`;
+  return `${diaDoMes(segunda)} – ${fim}`;
+}
+const formatarDiaCurto = (iso) => { const [, mes, dia] = iso.split('-'); return `${DIAS_SEMANA_ABREV[indiceDiaSemana(iso)]} ${dia}/${mes}`; };
+
+function rotuloFaixa(a) {
+  return MENSAGENS.FAIXA(a.descricao, ROTULOS_TIPO[a.tipo], ROTULOS_STATUS_ACAO[a.status], formatarMes(a.mesConclusaoEstimado), estaVencida(a));
+}
+// atributos comuns: abre a gaveta; cor pelo status (Vencida usa danger, Lei 9)
+// uma ação por linha (grid-row fixo), para a ordem hierárquica não se misturar
+const atributosFaixa = (a, chave, linha, colunaInicio, colunaFim, extraRotulo = '') => `type="button" data-acao="gaveta-abrir" data-id="${a.id}" data-faixa="${a.id}-${chave}" data-status="${a.status}" ${estaVencida(a) ? 'data-vencida' : ''}
+  style="grid-row:${linha}; grid-column:${colunaInicio} / ${colunaFim + 1}" title="${esc(a.descricao)}" aria-label="${esc(rotuloFaixa(a) + extraRotulo)}"`;
+// "Vencida" é selo à parte (Lei 9), nunca parte do rótulo de status
+const statusFaixa = (a) => `${badgeVencida(a)}<span class="faixa-status">${esc(ROTULOS_STATUS_ACAO[a.status])}</span>`;
+
+// colunas da grade são 1-based; dias é a lista ISO da semana
+const colunaDe = (dias, iso) => dias.indexOf(iso) + 1;
+
+function diaFundo(iso, foraDoMes, comNumero) {
+  const hoje = iso === HOJE;
+  return `<div class="dia" ${ehFimDeSemana(iso) ? 'data-fim-de-semana' : ''} ${foraDoMes ? 'data-fora' : ''} ${hoje && !foraDoMes ? 'data-hoje' : ''}>${comNumero && !foraDoMes
+    ? `<span class="dia-numero num">${diaDoMes(iso)}</span>${hoje ? `<span class="hoje-legenda">${esc(ROTULOS_CALENDARIO.HOJE)}</span>` : ''}` : ''}</div>`;
+}
+
+function renderMes(lista, inicio, fim) {
+  const cabecalho = DIAS_SEMANA_ABREV.map((d, i) => `<div class="dia-titulo" ${i >= CONFIG.DIAS_POR_SEMANA - 2 ? 'data-fim-de-semana' : ''}>${esc(d)}</div>`).join('');
+  const semanas = [];
+  for (let segunda = segundaDe(inicio); segunda <= fim; segunda = somarDias(segunda, CONFIG.DIAS_POR_SEMANA)) {
+    const dias = diasDaSemana(segunda);
+    const doMes = dias.filter((d) => d >= inicio && d <= fim);
+    const [ini, ult] = [colunaDe(dias, doMes[0]), colunaDe(dias, doMes[doMes.length - 1])];
+    const visiveis = lista.slice(0, CONFIG.MAX_FAIXAS_SEMANA_MES);
+    const resto = lista.length - visiveis.length;
+    const faixas = visiveis.map((a, i) => `<button class="faixa" ${atributosFaixa(a, segunda, i + 1, ini, ult)}>${badgeTipo(a.tipo)}<span class="faixa-desc">${esc(a.descricao)}</span>${statusFaixa(a)}</button>`).join('')
+      + (resto > 0 ? `<button type="button" class="link-botao legenda faixa-mais" data-acao="calendario-ver-semana" data-semana="${doMes[0]}" style="grid-row:${visiveis.length + 1}; grid-column:${ini} / ${ult + 1}" aria-label="${esc(MENSAGENS.VER_SEMANA(resto, formatarSemana(segunda)))}">${esc(MENSAGENS.MAIS_FAIXAS(resto))}</button>` : '');
+    semanas.push(`<div class="semana-mes">
+        <div class="dias-fundo" aria-hidden="true">${dias.map((d) => diaFundo(d, d < inicio || d > fim, true)).join('')}</div>
+        <div class="faixas">${faixas}</div>
+      </div>`);
+  }
+  return `<div class="dias-cabecalho" aria-hidden="true">${cabecalho}</div>${semanas.join('')}`;
+}
+
+function renderSemana(lista, segunda) {
+  const u = usuarioAtual();
+  const dias = diasDaSemana(segunda);
+  const domingo = dias[dias.length - 1];
+  const cabecalho = dias.map((d) => `<div class="dia-titulo" ${ehFimDeSemana(d) ? 'data-fim-de-semana' : ''} ${d === HOJE ? 'data-hoje' : ''}>${esc(formatarDiaCurto(d))}${d === HOJE ? `<span class="hoje-legenda">${esc(ROTULOS_CALENDARIO.HOJE)}</span>` : ''}</div>`).join('');
+  const faixas = lista.map((a, i) => {
+    const { inicio, fim } = intervaloDaAcao(a);
+    const antes = inicio < segunda;
+    const depois = fim > domingo;
+    const ini = colunaDe(dias, antes ? segunda : inicio);
+    const ult = colunaDe(dias, depois ? domingo : fim);
+    const pai = a.acaoPaiId ? acaoPorId(a.acaoPaiId) : null;
+    const extra = (antes ? `. ${MENSAGENS.CONTINUA_ANTES}` : '') + (depois ? `. ${MENSAGENS.CONTINUA_DEPOIS}` : '');
+    return `<button class="faixa faixa-semana" ${atributosFaixa(a, segunda, i + 1, ini, ult, extra)}>
+        <span class="faixa-linha">
+          ${antes ? `<span class="faixa-continua" aria-hidden="true">${ROTULOS_CALENDARIO.CONTINUA_ANTES}</span>` : ''}
+          <span class="badges">${badgeTipo(a.tipo)}${badgePrioridade(a.prioridade)}</span>
+          ${depois ? `<span class="faixa-continua" aria-hidden="true">${ROTULOS_CALENDARIO.CONTINUA_DEPOIS}</span>` : ''}
+        </span>
+        <span class="faixa-titulo">${esc(a.descricao)}</span>
+        ${pai && podeVer(pai, u) ? `<span class="legenda cartao-pai">${PREFIXO_PAI} ${esc(pai.descricao)}</span>` : ''}
+        <span class="faixa-linha">${iniciaisResponsaveis(a.responsaveis)}${a.tipo === E ? barraProgresso(progresso(a)) : ''}${statusFaixa(a)}</span>
+      </button>`;
+  }).join('');
+  return `<div class="semana-quadro">
+      <div class="dias-cabecalho">${cabecalho}</div>
+      <div class="semana-corpo">
+        <div class="dias-fundo" aria-hidden="true">${dias.map((d) => diaFundo(d, false, false)).join('')}</div>
+        <div class="faixas">${faixas}</div>
+      </div>
+    </div>`;
+}
+
+function renderCalendario(acaoVazio) {
+  const u = usuarioAtual();
+  const c = estado.calendario;
+  const mes = c.modo === MODO_CALENDARIO.MES;
+  const inicio = mes ? inicioDoMes(c.referencia) : segundaDe(c.referencia);
+  const fim = mes ? ultimoDiaDoMes(c.referencia) : somarDias(inicio, CONFIG.DIAS_POR_SEMANA - 1);
+  const noPeriodo = ordenarHierarquia(acoes.filter((a) => {
+    if (!podeVer(a, u) || !confereFiltrosAcoes(a, VISAO_ACOES.CALENDARIO)) return false;
+    const intervalo = intervaloDaAcao(a);
+    return intervalo.inicio <= fim && intervalo.fim >= inicio;
+  }));
+  const navegar = ROTULOS_CALENDARIO.NAVEGAR[c.modo];
+  const modos = Object.values(MODO_CALENDARIO).map((m) => `<button type="button" class="aba" data-acao="calendario-modo" data-modo="${m}" aria-pressed="${m === c.modo}">${esc(ROTULOS_MODO_CALENDARIO[m])}</button>`).join('');
+  const grade = mes ? renderMes(noPeriodo, inicio, fim) : renderSemana(noPeriodo, inicio);
+  return `<section class="card">
+      <div class="card-cabecalho calendario-barra">
+        <div class="calendario-nav">
+          <button type="button" class="btn btn-secundario btn-icone" data-acao="calendario-navegar" data-passo="-1" aria-label="${esc(navegar.ANTERIOR)}" title="${esc(navegar.ANTERIOR)}">${ROTULOS_CALENDARIO.ANTERIOR}</button>
+          <button type="button" class="btn btn-secundario btn-icone" data-acao="calendario-navegar" data-passo="1" aria-label="${esc(navegar.PROXIMO)}" title="${esc(navegar.PROXIMO)}">${ROTULOS_CALENDARIO.PROXIMO}</button>
+          <button type="button" class="btn btn-secundario" data-acao="calendario-hoje">${esc(ROTULOS_CALENDARIO.HOJE)}</button>
+          <h2 class="card-titulo calendario-periodo" id="calendario-periodo" tabindex="-1" aria-live="polite">${esc(mes ? formatarMesExtenso(inicio) : formatarSemana(inicio))}</h2>
+        </div>
+        <div class="agrupar">
+          <span class="legenda" aria-live="polite">${esc(MENSAGENS.ACOES_NO_PERIODO[c.modo](noPeriodo.length))}</span>
+          <div class="abas" role="group" aria-label="${esc(ROTULOS_CALENDARIO.MODO)}">${modos}</div>
+        </div>
+      </div>
+      ${noPeriodo.length
+        ? `<div class="calendario-grade ${estado.calendarioTrocado ? 'trocando' : ''}">${grade}</div>`
+        : estadoVazio(MENSAGENS.NENHUMA_ACAO_PERIODO, acaoVazio)}
+    </section>`;
+}
+
+function renderAcoes() {
+  const u = usuarioAtual();
+  const visao = visaoAtual();
+  const confere = (a) => confereFiltrosAcoes(a, visao);
   const visiveis = (lista) => lista.filter((a) => podeVer(a, u));
   // nó aparece se confere com o filtro ou tem descendente visível que confere
   const aparece = (a) => confere(a) || visiveis(filhasDe(a.id)).some(aparece);
@@ -926,27 +1417,42 @@ function renderAcoes() {
     </tr>`);
     if (aberto) filhas.forEach((filha) => adicionar(filha, nivel + 1, surgindo || estado.recemExpandido === a.id));
   };
-  visiveis(acoes.filter((a) => a.tipo === E)).sort(porMesEId).forEach((a) => adicionar(a, 0, false));
-
-  const total = acoes.filter((a) => podeVer(a, u) && confere(a)).length;
   const abas = `<div class="abas" role="tablist"><button type="button" class="aba" aria-current="page">Visão geral</button><button type="button" class="aba" data-acao="em-breve">Pauta da semana</button><button type="button" class="aba" data-acao="em-breve">Gerador de ações</button></div>`;
   const novaAcao = pode(OPERACAO.CRIAR_ESTRATEGICA) ? botaoEmBreve('Nova ação', 'btn-primario', 'mais') : '';
+  const topo = cabecalho('Gestor de ações', 'Acompanhe e controle o fluxo de atividades estratégicas e operacionais', abas + novaAcao) + renderFiltrosAcoes(visao);
+  // "Nova ação" já está no cabeçalho: no vazio, a ação útil é limpar os filtros
+  const acaoVazio = filtrosAtivosAcoes(visao) ? '<button type="button" class="btn btn-secundario" data-acao="limpar-filtros" data-grupo="filtrosAcoes">Limpar filtros</button>' : '';
+  if (visao === VISAO_ACOES.KANBAN) return topo + renderKanban(acaoVazio);
+  if (visao === VISAO_ACOES.CALENDARIO) return topo + renderCalendario(acaoVazio);
 
-  return cabecalho('Gestor de ações', 'Acompanhe e controle o fluxo de atividades estratégicas e operacionais', abas + novaAcao) + `
-    <section class="card filtros">
-      ${seletor('filtrosAcoes.unidadeId', ROTULOS_FILTRO.UNIDADE, f.unidadeId, opcoesUnidades(), ROTULOS_FILTRO.TODAS_UNIDADES)}
-      ${seletor('filtrosAcoes.tipo', ROTULOS_FILTRO.TIPO, f.tipo, Object.values(TIPO_ACAO).map((t) => [t, ROTULOS_TIPO[t]]), ROTULOS_FILTRO.TODOS_TIPOS)}
-      ${seletor('filtrosAcoes.status', ROTULOS_FILTRO.STATUS, f.status, Object.values(STATUS_ACAO).map((s) => [s, ROTULOS_STATUS_ACAO[s]]), ROTULOS_FILTRO.TODOS_STATUS)}
-    </section>
+  visiveis(acoes.filter((a) => a.tipo === E)).sort(porMesEId).forEach((a) => adicionar(a, 0, false));
+  const total = acoes.filter((a) => podeVer(a, u) && confere(a)).length;
+
+  return topo + `
     <section class="card">
       <div class="card-cabecalho"><h2 class="card-titulo">Ações ${badgeContagem(total)}</h2></div>
       ${linhas.length
         ? `<table class="tabela"><thead><tr><th>Descrição</th><th>Responsáveis</th><th>Ponto focal</th><th>Unidade</th><th class="num">Mês concl.</th><th>Prioridade</th><th>Progresso</th><th>Status</th></tr></thead><tbody>${linhas.join('')}</tbody></table>`
-        : estadoVazio(MENSAGENS.NENHUMA_ACAO, novaAcao)}
+        : estadoVazio(MENSAGENS.NENHUMA_ACAO, acaoVazio)}
     </section>`;
 }
 
 /* --- T05 Detalhe da ação --- */
+// grade "Dados da ação": usada no T05 e na gaveta do T04
+function gradeDadosAcao(a) {
+  const item = (rotulo, valor) => `<div class="detalhe-item"><dt class="rotulo">${esc(rotulo)}</dt><dd>${valor}</dd></div>`;
+  return `<dl class="detalhe-grid">
+      ${item('Tipo', esc(ROTULOS_TIPO[a.tipo]))}
+      ${item('Status', `<div class="badges">${seletorStatus(a)}${badgeVencida(a)}</div>`)}
+      ${item('Prioridade', badgePrioridade(a.prioridade))}
+      ${item('Unidade', esc(unidadePorId(a.unidadeId).nome))}
+      ${item('Mês de conclusão', formatarMes(a.mesConclusaoEstimado))}
+      ${a.tipo === E ? item('Progresso', barraProgresso(progresso(a))) : ''}
+      ${item('Responsáveis', listaUsuarios(a.responsaveis))}
+      ${item('Pontos focais', listaUsuarios(a.pontosFocais, MENSAGENS.NENHUM_PONTO_FOCAL))}
+    </dl>`;
+}
+
 function renderDetalhe(id) {
   const u = usuarioAtual();
   const a = acaoPorId(id);
@@ -966,7 +1472,6 @@ function renderDetalhe(id) {
   }
   const somenteLeitura = !pode(OPERACAO.EDITAR, a) && !pode(OPERACAO.MUDAR_STATUS, a);
 
-  const item = (rotulo, valor) => `<div class="detalhe-item"><dt class="rotulo">${esc(rotulo)}</dt><dd>${valor}</dd></div>`;
   const filhas = filhasDe(a.id).filter((x) => podeVer(x, u));
   const tipoFilha = a.tipo === E ? O : S;
   const podeCriarFilha = a.tipo === E ? pode(OPERACAO.CRIAR_OPERACIONAL, a) : pode(OPERACAO.CRIAR_SUB_ACAO, a);
@@ -984,18 +1489,38 @@ function renderDetalhe(id) {
     + `<div class="badges">${badgeTipo(a.tipo)}${badgeStatus(a.status)}${badgeVencida(a)}</div>`
     + (bloqueio && pode(OPERACAO.EXCLUIR, a) ? `<p class="motivo">${esc(bloqueio)}</p>` : '')
     + (somenteLeitura ? `<p class="aviso">${esc(MENSAGENS.HERANCA)}</p>` : '')
-    + `<section class="card"><h2 class="card-titulo">Dados da ação</h2><dl class="detalhe-grid">
-        ${item('Tipo', esc(ROTULOS_TIPO[a.tipo]))}
-        ${item('Status', `<div class="badges">${seletorStatus(a)}${badgeVencida(a)}</div>`)}
-        ${item('Prioridade', badgePrioridade(a.prioridade))}
-        ${item('Unidade', esc(unidadePorId(a.unidadeId).nome))}
-        ${item('Mês de conclusão', formatarMes(a.mesConclusaoEstimado))}
-        ${a.tipo === E ? item('Progresso', barraProgresso(progresso(a))) : ''}
-        ${item('Responsáveis', listaUsuarios(a.responsaveis))}
-        ${item('Pontos focais', listaUsuarios(a.pontosFocais, MENSAGENS.NENHUM_PONTO_FOCAL))}
-      </dl></section>`
+    + `<section class="card"><h2 class="card-titulo">Dados da ação</h2>${gradeDadosAcao(a)}</section>`
     + cardFilhas
     + `<section class="card"><h2 class="card-titulo">Histórico de status</h2><p class="legenda">${esc(MENSAGENS.HISTORICO_EM_BREVE)}</p></section>`;
+}
+
+/* --- T04 Gaveta de detalhe rápido (editar e excluir ficam só no T05) --- */
+function renderGaveta(a) {
+  const u = usuarioAtual();
+  const trilha = [];
+  for (let pai = a.acaoPaiId ? acaoPorId(a.acaoPaiId) : null; pai; pai = pai.acaoPaiId ? acaoPorId(pai.acaoPaiId) : null) {
+    if (podeVer(pai, u)) trilha.unshift(`<button type="button" class="link-botao legenda" data-acao="gaveta-abrir" data-id="${pai.id}">${esc(ROTULOS_TIPO[pai.tipo])}: ${esc(pai.descricao)}</button>`);
+  }
+  const somenteLeitura = !pode(OPERACAO.EDITAR, a) && !pode(OPERACAO.MUDAR_STATUS, a);
+  const filhas = filhasDe(a.id).filter((x) => podeVer(x, u));
+  const tipoFilha = a.tipo === E ? O : S;
+  const secaoFilhas = a.tipo === S ? '' : `<section class="gaveta-secao"><h3 class="card-titulo">${ROTULOS_TIPO_PLURAL[tipoFilha]} ${badgeContagem(filhas.length)}</h3>
+      ${filhas.length
+        ? `<ul class="lista-curta">${filhas.map((x) => `<li><button type="button" class="link-botao" data-acao="gaveta-abrir" data-id="${x.id}">${esc(x.descricao)}</button><span class="badges">${badgeStatus(x.status)}${badgeVencida(x)}</span></li>`).join('')}</ul>`
+        : `<p class="legenda">${esc(MENSAGENS.NENHUMA_FILHA)}</p>`}
+    </section>`;
+  return `<div class="gaveta-topo">
+      <nav class="trilha" aria-label="Trilha">${trilha.join('<span class="legenda" aria-hidden="true">/</span>') || `<span class="legenda">${esc(ROTULOS_TIPO[a.tipo])}</span>`}</nav>
+      <button type="button" class="btn btn-terciario" data-acao="gaveta-fechar">${icone('fechar')}${esc(MENSAGENS.FECHAR)}</button>
+    </div>
+    <div class="gaveta-cabecalho">
+      <h2 class="gaveta-titulo" id="gaveta-titulo" tabindex="-1">${esc(a.descricao)}</h2>
+      <div class="badges">${badgeTipo(a.tipo)}</div>
+      ${somenteLeitura ? `<p class="aviso">${esc(MENSAGENS.HERANCA)}</p>` : ''}
+    </div>
+    <section class="gaveta-secao"><h3 class="card-titulo">Dados da ação</h3>${gradeDadosAcao(a)}</section>
+    ${secaoFilhas}
+    <a class="btn btn-secundario" href="#/acoes/${a.id}">${esc(MENSAGENS.ABRIR_DETALHE)}</a>`;
 }
 
 /* --- Shell persistente (criado uma vez; só o conteúdo é re-renderizado) --- */
@@ -1058,53 +1583,174 @@ function seletorDeFoco(el) {
   return partes.length ? partes.join('') : null;
 }
 
+// query do hash (#/acoes?visao=kanban)
+function lerQuery() {
+  const i = location.hash.indexOf('?');
+  return new URLSearchParams(i === -1 ? '' : location.hash.slice(i + 1));
+}
+
+// re-renderiza um contêiner devolvendo o foco (e a posição do cursor, em campos de texto)
+function trocarConteudo(conteiner, html) {
+  const ativo = conteiner.contains(document.activeElement) ? document.activeElement : null;
+  const foco = seletorDeFoco(ativo);
+  const cursor = ativo && typeof ativo.selectionStart === 'number' ? [ativo.selectionStart, ativo.selectionEnd] : null;
+  conteiner.innerHTML = html;
+  if (!foco) return;
+  const alvo = conteiner.querySelector(foco);
+  if (!alvo || alvo.disabled) return;
+  alvo.focus({ preventScroll: true });
+  if (cursor && alvo.setSelectionRange) alvo.setSelectionRange(cursor[0], cursor[1]);
+}
+
 function render() {
   const app = document.getElementById('app');
   const hash = location.hash;
-  const [base, id] = hash.replace(/^#\//, '').split('/');
+  const [caminho] = hash.replace(/^#\//, '').split('?');
+  const [base, id] = caminho.split('/');
   const rotaMudou = hash !== estado.rotaRenderizada;
   estado.rotaRenderizada = hash;
+  if (base !== 'acoes' || id !== undefined) fecharGaveta(); // a gaveta só existe no T04
   if (base === 'login') { app.innerHTML = renderLogin(); return; }
   if (!document.getElementById('conteudo')) app.innerHTML = renderShell();
   atualizarShell(base);
 
   const conteudo = document.getElementById('conteudo');
-  const foco = conteudo.contains(document.activeElement) ? seletorDeFoco(document.activeElement) : null;
   conteudo.classList.remove('entrando'); // animação de entrada só na troca de rota
-  conteudo.innerHTML = renderTela(base, id);
+  trocarConteudo(conteudo, renderTela(base, id));
   if (rotaMudou) {
     void conteudo.offsetWidth; // reinicia a animação
     conteudo.classList.add('entrando');
     window.scrollTo(0, 0);
   }
-  if (foco) {
-    const alvo = conteudo.querySelector(foco);
-    if (alvo && !alvo.disabled) alvo.focus({ preventScroll: true });
-  }
+  atualizarGaveta();
   estado.recemExpandido = null;
+  estado.recemMovido = null;
+  estado.calendarioTrocado = false;
 }
 
 function irPara(destino) {
   if (location.hash === destino) render(); else location.hash = destino;
 }
 
+// o toast não recebe foco ao aparecer; o tempo pausa enquanto ele está sob o mouse ou com foco
 let timerToast;
-function toast(mensagem, tipo = 'sucesso') {
-  const el = document.getElementById('toast');
-  el.textContent = mensagem;
+let duracaoToast = CONFIG.DURACAO_TOAST_MS;
+const elToast = () => document.getElementById('toast');
+function esconderToast() {
+  clearTimeout(timerToast);
+  elToast().classList.remove('visivel');
+  estado.ultimaMudanca = null; // fim da janela do "Desfazer"
+}
+function agendarFimToast() {
+  clearTimeout(timerToast);
+  timerToast = setTimeout(esconderToast, duracaoToast);
+}
+function toast(mensagem, tipo = 'sucesso', { desfazer = false } = {}) {
+  const el = elToast();
+  const botao = el.querySelector('[data-acao="desfazer"]');
+  document.getElementById('toast-texto').textContent = mensagem;
+  botao.textContent = MENSAGENS.DESFAZER;
+  botao.hidden = !desfazer;
+  if (!desfazer) estado.ultimaMudanca = null;
   el.dataset.tipo = tipo;
   el.classList.add('visivel');
-  clearTimeout(timerToast);
-  timerToast = setTimeout(() => el.classList.remove('visivel'), CONFIG.DURACAO_TOAST_MS);
+  duracaoToast = desfazer ? CONFIG.DURACAO_DESFAZER_MS : CONFIG.DURACAO_TOAST_MS;
+  agendarFimToast();
 }
 
-function mudarStatus(id, novo) {
+function anunciar(mensagem) {
+  const el = document.getElementById('anuncio');
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = mensagem; });
+}
+
+// toda mudança de status passa por aqui (lista, Kanban, gaveta, T05 e "Desfazer")
+function mudarStatus(id, novo, { desfazendo = false, anunciarMovimento = false } = {}) {
   const a = acaoPorId(id);
-  if (!a || !pode(OPERACAO.MUDAR_STATUS, a)) { toast(MENSAGENS.SEM_PERMISSAO_OPERACAO, 'erro'); render(); return; }
+  if (!a || !pode(OPERACAO.VER, a)) { toast(MENSAGENS.ACAO_NAO_ENCONTRADA, 'erro'); render(); return; } // 404 idêntico
+  if (!pode(OPERACAO.MUDAR_STATUS, a)) { toast(MENSAGENS.SEM_PERMISSAO_OPERACAO, 'erro'); render(); return; } // 403
+  if (!Object.values(STATUS_ACAO).includes(novo)) return; // só valores do enum
   if (a.status === novo) return; // Lei 12: mesmo status não tem efeito
+  const de = a.status;
   a.status = novo;
-  toast(MENSAGENS.STATUS_ATUALIZADO);
+  estado.recemMovido = id;
+  if (desfazendo) toast(MENSAGENS.MUDANCA_DESFEITA);
+  else {
+    toast(MENSAGENS.STATUS_ATUALIZADO, 'sucesso', { desfazer: true });
+    estado.ultimaMudanca = { id, de, para: novo, usuarioId: estado.usuarioId };
+  }
+  if (anunciarMovimento) anunciar(MENSAGENS.ACAO_MOVIDA(a.descricao, ROTULOS_STATUS_ACAO[novo]));
   render();
+}
+
+function desfazerMudanca() {
+  const m = estado.ultimaMudanca;
+  esconderToast();
+  if (!m || m.usuarioId !== estado.usuarioId) return; // só quem mudou desfaz
+  const a = acaoPorId(m.id);
+  if (!a || a.status !== m.para) return; // a ação mudou de novo ou foi excluída
+  mudarStatus(m.id, m.de, { desfazendo: true });
+  // o botão some com o toast: o foco vai para o controle da ação, se estiver na tela
+  const alvo = document.querySelector(`#gaveta[open] [data-status-acao="${m.id}"], #conteudo [data-cartao="${m.id}"], #conteudo [data-status-acao="${m.id}"]`);
+  if (alvo) alvo.focus({ preventScroll: true });
+}
+
+// Kanban: mover cartão para outra coluna (mouse ou teclado)
+function moverCartao(id, novo) {
+  const a = acaoPorId(id);
+  if (!a || a.status === novo) return; // Lei 12: mesma coluna não faz nada
+  mudarStatus(id, novo, { anunciarMovimento: true });
+}
+
+function moverCartaoPorTeclado(cartao, passo) {
+  const id = Number(cartao.dataset.cartao);
+  const a = acaoPorId(id);
+  if (!a) return;
+  if (!pode(OPERACAO.MUDAR_STATUS, a)) { anunciar(MENSAGENS.STATUS_BLOQUEADO); return; }
+  const ordem = Object.values(STATUS_ACAO);
+  const destino = ordem[ordem.indexOf(a.status) + passo];
+  if (destino) moverCartao(id, destino);
+}
+
+/* Gaveta de detalhe rápido */
+let origemGaveta = null; // seletor do controle que abriu a gaveta, para devolver o foco
+function abrirGaveta(id, origem) {
+  const a = acaoPorId(id);
+  if (!a || !pode(OPERACAO.VER, a)) return;
+  const gaveta = document.getElementById('gaveta');
+  if (!gaveta.open) {
+    origemGaveta = seletorDeFoco(origem);
+    gaveta.append(elToast()); // fora do modal o toast ficaria inerte
+    gaveta.showModal();
+  }
+  estado.gavetaAcaoId = id;
+  atualizarGaveta();
+  document.getElementById('gaveta-titulo').focus();
+}
+
+function atualizarGaveta() {
+  const gaveta = document.getElementById('gaveta');
+  if (!gaveta.open || gaveta.classList.contains('fechando')) return;
+  const a = acaoPorId(estado.gavetaAcaoId);
+  // fecha se a ação deixou de ser visível (troca de usuário, exclusão) ou a tela saiu do estado normal
+  if (!a || !pode(OPERACAO.VER, a) || estado.estadoTela !== ESTADO_TELA.NORMAL) { fecharGaveta(); return; }
+  trocarConteudo(document.getElementById('gaveta-corpo'), renderGaveta(a));
+}
+
+function fecharGaveta() {
+  const gaveta = document.getElementById('gaveta');
+  if (!gaveta.open || gaveta.classList.contains('fechando')) return;
+  fecharDialogo(gaveta, aoFecharGaveta);
+}
+
+// também é chamada pelo evento close (Esc forçado pelo navegador); roda uma vez por abertura
+function aoFecharGaveta() {
+  if (estado.gavetaAcaoId === null) return;
+  estado.gavetaAcaoId = null;
+  document.body.append(elToast());
+  const alvo = origemGaveta && document.querySelector(`#conteudo ${origemGaveta}`);
+  if (alvo) alvo.focus({ preventScroll: true });
+  origemGaveta = null;
 }
 
 function abrirConfirmacao(id) {
@@ -1117,12 +1763,20 @@ function abrirConfirmacao(id) {
   dialogo.showModal();
 }
 
-function fecharDialogo(depois) {
-  const dialogo = document.getElementById('dialogo');
-  const fim = () => { dialogo.classList.remove('fechando'); dialogo.close(); if (depois) depois(); };
+function fecharDialogo(dialogo, depois) {
+  let terminou = false;
+  const fim = () => {
+    if (terminou) return;
+    terminou = true;
+    dialogo.removeEventListener('animationend', aoTerminar);
+    dialogo.classList.remove('fechando'); dialogo.close(); if (depois) depois();
+  };
+  function aoTerminar(evento) { if (evento.target === dialogo && !evento.pseudoElement) fim(); } // ignora animações internas e do fundo
   dialogo.classList.add('fechando');
-  if (getComputedStyle(dialogo).animationName === 'none') fim();
-  else dialogo.addEventListener('animationend', fim, { once: true });
+  const estilo = getComputedStyle(dialogo);
+  if (estilo.animationName === 'none') { fim(); return; }
+  dialogo.addEventListener('animationend', aoTerminar);
+  setTimeout(fim, parseFloat(estilo.animationDuration) * CONFIG.MS_POR_SEGUNDO * CONFIG.FATOR_SALVAGUARDA_ANIMACAO); // salvaguarda se o animationend não vier
 }
 
 // Leis 10 e 11: exclusão física com cascata, independente de visibilidade
@@ -1161,15 +1815,45 @@ document.addEventListener('click', (evento) => {
       render();
       break;
     }
-    case 'limpar-filtros':
-      Object.assign(estado.filtrosPainel, { unidadeId: '', mes: '', pontoFocal: '', status: FILTRO_STATUS_PAINEL.TODOS });
+    case 'limpar-filtros': {
+      const grupo = alvo.dataset.grupo;
+      clearTimeout(timerBusca);
+      Object.assign(estado[grupo], FILTROS_INICIAIS[grupo]);
       render();
-      document.querySelector('[data-filtro="filtrosPainel.unidadeId"]').focus(); // o botão fica desabilitado
+      document.querySelector(`[data-filtro="${grupo}.unidadeId"]`).focus(); // o botão fica desabilitado
       break;
+    }
+    case 'visao': irPara(ROTA_VISAO[alvo.dataset.visao]); break;
+    case 'agrupar': estado.agrupamentoKanban = alvo.dataset.agrupamento; render(); break;
+    case 'calendario-navegar': {
+      const c = estado.calendario;
+      const passo = Number(alvo.dataset.passo);
+      c.referencia = c.modo === MODO_CALENDARIO.MES ? somarMeses(c.referencia, passo) : somarDias(c.referencia, passo * CONFIG.DIAS_POR_SEMANA);
+      estado.calendarioTrocado = true;
+      render();
+      break;
+    }
+    case 'calendario-hoje': estado.calendario.referencia = HOJE; estado.calendarioTrocado = true; render(); break;
+    case 'calendario-modo': estado.calendario.modo = alvo.dataset.modo; estado.calendarioTrocado = true; render(); break;
+    case 'calendario-ver-semana':
+      Object.assign(estado.calendario, { modo: MODO_CALENDARIO.SEMANA, referencia: alvo.dataset.semana });
+      estado.calendarioTrocado = true;
+      render();
+      document.getElementById('calendario-periodo').focus(); // o "+N mais" some: o foco vai para o título do período
+      break;
+    case 'recolher-raia': {
+      const id = Number(alvo.dataset.id);
+      if (estado.raiasRecolhidas.has(id)) estado.raiasRecolhidas.delete(id); else estado.raiasRecolhidas.add(id);
+      render();
+      break;
+    }
+    case 'gaveta-abrir': abrirGaveta(Number(alvo.dataset.id), alvo); break;
+    case 'gaveta-fechar': fecharGaveta(); break;
+    case 'desfazer': desfazerMudanca(); break;
     case 'em-breve': toast(MENSAGENS.EM_BREVE); break;
     case 'excluir': abrirConfirmacao(Number(alvo.dataset.id)); break;
-    case 'cancelar-exclusao': fecharDialogo(); break;
-    case 'confirmar-exclusao': fecharDialogo(() => excluirEmCascata(Number(dialogo.dataset.id))); break;
+    case 'cancelar-exclusao': fecharDialogo(dialogo); break;
+    case 'confirmar-exclusao': fecharDialogo(dialogo, () => excluirEmCascata(Number(dialogo.dataset.id))); break;
     case 'tentar-de-novo': estado.estadoTela = ESTADO_TELA.NORMAL; render(); break;
     case 'sair': irPara(ROTAS.LOGIN); break;
     default: break;
@@ -1178,9 +1862,9 @@ document.addEventListener('click', (evento) => {
 
 document.addEventListener('change', (evento) => {
   const alvo = evento.target;
-  if (alvo.matches('[data-campo="usuario"]')) { estado.usuarioId = Number(alvo.value); render(); return; }
+  if (alvo.matches('[data-campo="usuario"]')) { esconderToast(); estado.usuarioId = Number(alvo.value); render(); return; } // encerra o "Desfazer" do usuário anterior
   if (alvo.matches('[data-campo="estado-tela"]')) { estado.estadoTela = alvo.value; render(); return; }
-  if (alvo.matches('[data-filtro]')) {
+  if (alvo.matches('[data-filtro]') && alvo.type !== 'search') { // a busca é tratada no evento input
     const [grupo, chave] = alvo.dataset.filtro.split('.');
     estado[grupo][chave] = alvo.value;
     render();
@@ -1189,13 +1873,85 @@ document.addEventListener('change', (evento) => {
   if (alvo.matches('[data-status-acao]')) mudarStatus(Number(alvo.dataset.statusAcao), alvo.value);
 });
 
+let timerBusca;
+document.addEventListener('input', (evento) => {
+  const alvo = evento.target;
+  if (!alvo.matches('[data-filtro="filtrosAcoes.busca"]')) return;
+  const valor = alvo.value;
+  clearTimeout(timerBusca);
+  timerBusca = setTimeout(() => { estado.filtrosAcoes.busca = valor; render(); }, CONFIG.DEBOUNCE_BUSCA_MS);
+});
+
+// teclado no cartão: Enter ou Espaço abre a gaveta; Alt+← e Alt+→ movem para a coluna vizinha
+document.addEventListener('keydown', (evento) => {
+  const cartao = evento.target instanceof Element && evento.target.matches('[data-cartao]') ? evento.target : null;
+  if (!cartao) return;
+  if ((evento.key === 'Enter' || evento.key === ' ') && !evento.altKey) {
+    evento.preventDefault();
+    abrirGaveta(Number(cartao.dataset.cartao), cartao);
+  } else if (evento.altKey && (evento.key === 'ArrowRight' || evento.key === 'ArrowLeft')) {
+    evento.preventDefault(); // evita o voltar/avançar do navegador
+    moverCartaoPorTeclado(cartao, evento.key === 'ArrowRight' ? 1 : -1);
+  }
+});
+
+// arrastar e soltar (API nativa do HTML5); só entre colunas da mesma raia
+let arrastandoId = null;
+function limparArraste() {
+  arrastandoId = null;
+  document.querySelectorAll('[data-arrastando], [data-destino], [data-origem], [data-sobre]').forEach((el) => {
+    el.removeAttribute('data-arrastando'); el.removeAttribute('data-destino'); el.removeAttribute('data-origem'); el.removeAttribute('data-sobre');
+  });
+}
+document.addEventListener('dragstart', (evento) => {
+  const cartao = evento.target instanceof Element ? evento.target.closest('[data-cartao]') : null;
+  if (!cartao || cartao.getAttribute('draggable') !== 'true') return;
+  const a = acaoPorId(Number(cartao.dataset.cartao));
+  if (!a || !pode(OPERACAO.MUDAR_STATUS, a)) { evento.preventDefault(); return; }
+  arrastandoId = a.id;
+  evento.dataTransfer.effectAllowed = 'move';
+  evento.dataTransfer.setData('text/plain', String(a.id));
+  const quadro = cartao.closest('.quadro-conteudo');
+  quadro.setAttribute('data-arrastando', '');
+  quadro.querySelectorAll('.coluna-kanban').forEach((coluna) => {
+    if (coluna.dataset.raia === cartao.dataset.raia && coluna.dataset.coluna !== a.status) coluna.setAttribute('data-destino', '');
+  });
+  requestAnimationFrame(() => cartao.setAttribute('data-origem', '')); // depois da captura da imagem de arraste
+});
+document.addEventListener('dragover', (evento) => {
+  if (arrastandoId === null) return;
+  const coluna = evento.target instanceof Element ? evento.target.closest('.coluna-kanban[data-destino]') : null;
+  // destaque próprio só na coluna sob o cursor
+  document.querySelectorAll('[data-sobre]').forEach((el) => { if (el !== coluna) el.removeAttribute('data-sobre'); });
+  if (!coluna) return;
+  coluna.setAttribute('data-sobre', '');
+  evento.preventDefault();
+  evento.dataTransfer.dropEffect = 'move';
+});
+document.addEventListener('drop', (evento) => {
+  const coluna = evento.target instanceof Element ? evento.target.closest('.coluna-kanban[data-destino]') : null;
+  if (arrastandoId === null || !coluna) return;
+  evento.preventDefault();
+  const id = arrastandoId;
+  limparArraste();
+  moverCartao(id, coluna.dataset.coluna);
+});
+document.addEventListener('dragend', limparArraste);
+
 document.addEventListener('submit', (evento) => {
   if (!evento.target.matches('[data-form="login"]')) return;
   evento.preventDefault();
   irPara(ROTAS.PAINEL);
 });
 
-document.getElementById('dialogo').addEventListener('cancel', (evento) => { evento.preventDefault(); fecharDialogo(); });
+document.getElementById('dialogo').addEventListener('cancel', (evento) => { evento.preventDefault(); fecharDialogo(evento.target); });
+document.getElementById('gaveta').addEventListener('cancel', (evento) => { evento.preventDefault(); fecharGaveta(); });
+document.getElementById('gaveta').addEventListener('close', aoFecharGaveta);
+const toastEl = elToast();
+toastEl.addEventListener('mouseenter', () => clearTimeout(timerToast));
+toastEl.addEventListener('focusin', () => clearTimeout(timerToast));
+toastEl.addEventListener('mouseleave', () => { if (toastEl.classList.contains('visivel') && !toastEl.contains(document.activeElement)) agendarFimToast(); });
+toastEl.addEventListener('focusout', (evento) => { if (toastEl.classList.contains('visivel') && !toastEl.contains(evento.relatedTarget) && !toastEl.matches(':hover')) agendarFimToast(); });
 window.addEventListener('hashchange', render);
 
 /* ===== 7. Inicialização ===== */
